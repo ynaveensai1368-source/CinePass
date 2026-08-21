@@ -6,8 +6,13 @@ from .base import *
 import os
 
 SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-dev-key-cinepass-2026')
-DEBUG = os.getenv('DEBUG', 'True') == 'True'
-ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '127.0.0.1,localhost,testserver').split(',')
+allowed_hosts_raw = os.getenv('ALLOWED_HOSTS', '127.0.0.1,localhost,testserver,.onrender.com')
+ALLOWED_HOSTS = [h.strip() for h in allowed_hosts_raw.split(',') if h.strip()]
+render_host = os.getenv('RENDER_EXTERNAL_HOSTNAME')
+if render_host and render_host not in ALLOWED_HOSTS:
+    ALLOWED_HOSTS.append(render_host)
+if '.onrender.com' not in ALLOWED_HOSTS:
+    ALLOWED_HOSTS.append('.onrender.com')
 
 # Dynamic email backend: uses SMTP if configured in .env, otherwise console backend for local testing
 EMAIL_BACKEND = os.getenv(

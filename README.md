@@ -129,8 +129,8 @@ CinePass/
 
 ### 1. Clone the Repository
 ```bash
-git clone https://github.com/ynaveensai1368-source/Book_by_show.git
-cd Book_by_show
+git clone https://github.com/ynaveensai1368-source/CinePass.git
+cd CinePass
 ```
 
 ### 2. Create and Activate Virtual Environment
