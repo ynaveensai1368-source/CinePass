@@ -3,6 +3,7 @@ from django.views import View
 from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView, TemplateView
 
 import datetime
+import logging
 from django.db.models import Q, Min, Max, Avg, Count, Exists, OuterRef
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.contrib import messages
@@ -14,6 +15,9 @@ from theaters.models import City, Theater
 from shows.models import Show
 from .forms import MovieForm
 from .recommendations import get_personalized_recommendations
+
+logger = logging.getLogger(__name__)
+
 
 class StaffRequiredMixin(UserPassesTestMixin):
     def test_func(self):

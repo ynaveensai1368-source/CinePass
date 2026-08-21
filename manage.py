@@ -6,7 +6,12 @@ import sys
 
 def main():
     """Run administrative tasks."""
-    os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'movie_discovery_system.settings.dev')
+    if os.getenv('RENDER') or os.getenv('DJANGO_ENV') == 'production' or os.getenv('DEBUG', 'False').lower() not in ('true', '1', 't'):
+        default_settings = 'movie_discovery_system.settings.prod'
+    else:
+        default_settings = 'movie_discovery_system.settings.dev'
+
+    os.environ.setdefault('DJANGO_SETTINGS_MODULE', default_settings)
     try:
         from django.core.management import execute_from_command_line
     except ImportError as exc:
@@ -20,3 +25,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+

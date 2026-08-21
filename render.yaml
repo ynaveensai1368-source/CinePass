@@ -1,13 +1,16 @@
 services:
-  # 1. Django Web API Service
+  # 1. Django Web Service (Daphne ASGI Server with WebSocket & HTTP support)
   - type: web
     name: cinepass-backend
     env: python
     buildCommand: "./build.sh"
-    startCommand: "gunicorn movie_discovery_system.wsgi:application"
+    startCommand: "daphne -b 0.0.0.0 -p $PORT movie_discovery_system.asgi:application"
+    healthCheckPath: "/api/health/"
     envVars:
       - key: PYTHON_VERSION
-        value: 3.11.0
+        value: 3.11.9
+      - key: DJANGO_SETTINGS_MODULE
+        value: movie_discovery_system.settings.prod
       - key: DEBUG
         value: False
       - key: SECRET_KEY
@@ -15,6 +18,11 @@ services:
       - key: DATABASE_URL
         fromDatabase:
           name: cinepass-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: cinepass-redis
           property: connectionString
       - key: CELERY_BROKER_URL
         fromService:
@@ -42,11 +50,25 @@ services:
     buildCommand: "pip install -r requirements.txt"
     startCommand: "celery -A movie_discovery_system worker --loglevel=info"
     envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: DJANGO_SETTINGS_MODULE
+        value: movie_discovery_system.settings.prod
       - key: DATABASE_URL
         fromDatabase:
           name: cinepass-db
           property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: cinepass-redis
+          property: connectionString
       - key: CELERY_BROKER_URL
+        fromService:
+          type: redis
+          name: cinepass-redis
+          property: connectionString
+      - key: CELERY_RESULT_BACKEND
         fromService:
           type: redis
           name: cinepass-redis
@@ -62,3 +84,4 @@ databases:
   - name: cinepass-db
     databaseName: cinepass_db
     user: cinepass_user
+
