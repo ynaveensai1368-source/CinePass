@@ -8,14 +8,19 @@ from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
 
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 from core.views import health_check
+
+def favicon_view(request):
+    """Responds to browser favicon requests."""
+    return HttpResponse(status=204)
 
 def chrome_devtools_json(request):
     """Responds to Chrome/Chromium DevTools workspace probe."""
     return JsonResponse({}, status=200)
 
 urlpatterns = [
+    path('favicon.ico', favicon_view, name='favicon'),
     path('.well-known/appspecific/com.chrome.devtools.json', chrome_devtools_json),
     path('admin/', admin.site.urls),
     path('api/health/', health_check, name='health_check'),
