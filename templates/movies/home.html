@@ -1,0 +1,205 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}CinePass - Real TMDb Movie Discovery & Ticket Booking{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+
+    <!-- Hero Carousel Section with Official TMDb Backdrops -->
+    {% if hero_movies %}
+    <div id="heroCarousel" class="carousel slide hero-banner mb-5" data-bs-ride="carousel">
+        <div class="carousel-inner">
+            {% for movie in hero_movies %}
+            <div class="carousel-item {% if forloop.first %}active{% endif %}">
+                <img src="{{ movie.get_backdrop_url }}" class="hero-backdrop" alt="{{ movie.title }}" onerror="this.onerror=null; this.src='{% static 'images/fallback_poster.png' %}';">
+                <div class="hero-content">
+                    <div class="d-flex align-items-center gap-2 mb-2">
+                        <span class="badge bg-danger px-3 py-2 fs-6 rounded-pill fw-semibold">Featured</span>
+                        {% if movie.rating and movie.rating > 0 %}
+                            <span class="badge bg-warning text-dark fw-bold px-3 py-2 fs-6 rounded-pill"><i class="fa-solid fa-star me-1"></i> {{ movie.rating }} / 10</span>
+                        {% else %}
+                            <span class="badge bg-secondary text-white fw-bold px-3 py-2 fs-6 rounded-pill"><i class="fa-solid fa-star me-1"></i> N/A</span>
+                        {% endif %}
+                    </div>
+                    <h1 class="display-4 text-white fw-bold mb-1">{{ movie.title }}</h1>
+                    {% if movie.tagline %}
+                        <p class="fst-italic text-warning-subtle fs-5 mb-2">"{{ movie.tagline }}"</p>
+                    {% endif %}
+                    <p class="text-white-80 col-lg-8 mb-4 text-truncate" style="-webkit-line-clamp: 2; display: -webkit-box; -webkit-box-orient: vertical; white-space: normal;">{{ movie.description }}</p>
+                    <div class="d-flex align-items-center gap-3">
+                        {% if movie.has_active_shows %}
+                            <a href="{% url 'movies:detail' movie.slug %}" class="btn btn-danger btn-lg px-4 fw-semibold rounded-3 shadow">
+                                <i class="fa-solid fa-ticket me-2"></i> Book Tickets
+                            </a>
+                        {% else %}
+                            <a href="{% url 'movies:detail' movie.slug %}" class="btn btn-danger btn-lg px-4 fw-semibold rounded-3 shadow">
+                                <i class="fa-solid fa-circle-info me-2"></i> View Details
+                            </a>
+                        {% endif %}
+                        {% if movie.trailer_url %}
+                            <button type="button" class="btn btn-glass btn-lg px-4 play-trailer-btn"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#globalTrailerModal"
+                                    data-trailer-url="{{ movie.get_clean_trailer_url }}"
+                                    data-trailer-title="{{ movie.title }}"
+                                    data-watch-url="{{ movie.get_youtube_watch_url }}"
+                                    data-trailer-key="{{ movie.trailer_youtube_key }}">
+                                <i class="fa-solid fa-play me-2"></i> Watch Trailer
+                            </button>
+                        {% endif %}
+
+                    </div>
+
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        <button class="carousel-control-prev" type="button" data-bs-target="#heroCarousel" data-bs-slide="prev" aria-label="Previous slide">
+            <span class="carousel-control-prev-icon"></span>
+        </button>
+        <button class="carousel-control-next" type="button" data-bs-target="#heroCarousel" data-bs-slide="next" aria-label="Next slide">
+            <span class="carousel-control-next-icon"></span>
+        </button>
+    </div>
+    {% endif %}
+
+    <!-- Now Playing Section -->
+    {% if now_playing %}
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <h3 class="fw-bold mb-0 text-white">
+                <i class="fa-solid fa-play-circle text-danger me-2"></i> Now Playing in Theaters
+            </h3>
+            <p class="text-secondary small mb-0">Current blockbuster screenings and live showtimes</p>
+        </div>
+        <a href="{% url 'movies:discovery' %}?category=now_playing" class="text-danger text-decoration-none fw-semibold">
+            See All <i class="fa-solid fa-arrow-right ms-1"></i>
+        </a>
+    </div>
+
+    <div class="row row-cols-2 row-cols-md-3 row-cols-lg-6 g-3 mb-5">
+        {% for movie in now_playing %}
+            <div class="col">
+                {% include 'includes/movie_card.html' with movie=movie %}
+            </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Recommended For You Section -->
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <h3 class="fw-bold mb-0 text-white">
+                <i class="fa-solid fa-wand-magic-sparkles text-danger me-2"></i> Recommended For You
+            </h3>
+            <p class="text-secondary small mb-0">Tailored based on your booking history & viewing activity</p>
+        </div>
+        <a href="{% url 'movies:discovery' %}" class="text-danger text-decoration-none fw-semibold">
+            Explore All <i class="fa-solid fa-arrow-right ms-1"></i>
+        </a>
+    </div>
+
+    <div class="row row-cols-2 row-cols-md-3 row-cols-lg-6 g-3 mb-5">
+        {% for movie in recommended_movies %}
+            <div class="col">
+                {% include 'includes/movie_card.html' with movie=movie %}
+            </div>
+        {% empty %}
+            <div class="col-12 text-center py-4 text-secondary">
+                <p>No recommendations available yet. Browse and book movies to personalize your feed!</p>
+            </div>
+        {% endfor %}
+    </div>
+
+    <!-- Popular Movies -->
+    {% if popular_movies %}
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <h3 class="fw-bold mb-0 text-white">
+                <i class="fa-solid fa-fire text-danger me-2"></i> Trending & Popular
+            </h3>
+            <p class="text-secondary small mb-0">Most popular movies among cinema viewers</p>
+        </div>
+        <a href="{% url 'movies:discovery' %}?sort=popularity" class="text-danger text-decoration-none fw-semibold">
+            See All <i class="fa-solid fa-arrow-right ms-1"></i>
+        </a>
+    </div>
+
+    <div class="row row-cols-2 row-cols-md-3 row-cols-lg-6 g-3 mb-5">
+        {% for movie in popular_movies %}
+            <div class="col">
+                {% include 'includes/movie_card.html' with movie=movie %}
+            </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Recently Viewed Movies Section -->
+    {% if recently_viewed %}
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <h3 class="fw-bold mb-0 text-white">
+                <i class="fa-solid fa-clock-rotate-left text-warning me-2"></i> Recently Viewed
+            </h3>
+            <p class="text-secondary small mb-0">Movies you viewed in this session</p>
+        </div>
+    </div>
+
+    <div class="row row-cols-2 row-cols-md-3 row-cols-lg-6 g-3 mb-5">
+        {% for movie in recently_viewed %}
+            <div class="col">
+                {% include 'includes/movie_card.html' with movie=movie %}
+            </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Top Rated Releases -->
+    {% if top_rated_movies %}
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <h3 class="fw-bold mb-0 text-white">
+                <i class="fa-solid fa-star text-warning me-2"></i> Top Rated Masterpieces
+            </h3>
+            <p class="text-secondary small mb-0">Highest rated critically acclaimed releases</p>
+        </div>
+        <a href="{% url 'movies:discovery' %}?sort=rating" class="text-danger text-decoration-none fw-semibold">
+            See All <i class="fa-solid fa-arrow-right ms-1"></i>
+        </a>
+    </div>
+
+    <div class="row row-cols-2 row-cols-md-3 row-cols-lg-6 g-3 mb-5">
+        {% for movie in top_rated_movies %}
+            <div class="col">
+                {% include 'includes/movie_card.html' with movie=movie %}
+            </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Upcoming Releases -->
+    {% if upcoming_movies %}
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <h3 class="fw-bold mb-0 text-white">
+                <i class="fa-regular fa-calendar-check text-info me-2"></i> Upcoming Releases
+            </h3>
+            <p class="text-secondary small mb-0">Highly anticipated upcoming movies</p>
+        </div>
+        <a href="{% url 'movies:discovery' %}?release_date=upcoming" class="text-danger text-decoration-none fw-semibold">
+            See All <i class="fa-solid fa-arrow-right ms-1"></i>
+        </a>
+    </div>
+
+    <div class="row row-cols-2 row-cols-md-3 row-cols-lg-6 g-3 mb-5">
+        {% for movie in upcoming_movies %}
+            <div class="col">
+                {% include 'includes/movie_card.html' with movie=movie %}
+            </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}

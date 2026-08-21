@@ -1,0 +1,42 @@
+{% extends 'base.html' %}
+
+{% block title %}Theaters & Cinema Halls - CinePass{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+
+    <div class="d-flex justify-content-between align-items-center mb-4 pb-3 border-bottom border-secondary border-opacity-25">
+        <div>
+            <h2 class="text-white fw-bold mb-1">
+                <i class="fa-solid fa-building-user text-danger me-2"></i> Cinema Theaters
+            </h2>
+            <p class="text-secondary mb-0">Browse theaters and screening locations in your city</p>
+        </div>
+        {% if user.is_staff %}
+            <a href="{% url 'theaters:create' %}" class="btn btn-accent btn-sm">+ Add New Theater</a>
+        {% endif %}
+    </div>
+
+    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+        {% for theater in theaters %}
+            <div class="col">
+                <div class="card bg-dark border-secondary rounded-4 p-4 h-100 shadow-sm">
+                    <h5 class="text-white fw-bold mb-1">{{ theater.name }}</h5>
+                    <span class="badge bg-danger mb-2 align-self-start"><i class="fa-solid fa-location-dot me-1"></i> {{ theater.city.name }}</span>
+                    <p class="text-secondary small mb-3">{{ theater.address }}</p>
+                    <div class="mt-auto border-top border-secondary pt-3">
+                        <a href="{% url 'movies:discovery' %}?theater={{ theater.id }}" class="btn btn-outline-accent btn-sm w-100">
+                            View Movies at this Theater
+                        </a>
+                    </div>
+                </div>
+            </div>
+        {% empty %}
+            <div class="col-12 text-center py-5 text-secondary">
+                <p>No theaters registered yet.</p>
+            </div>
+        {% endfor %}
+    </div>
+
+</div>
+{% endblock %}

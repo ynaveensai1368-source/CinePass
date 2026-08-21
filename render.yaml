@@ -1,0 +1,64 @@
+services:
+  # 1. Django Web API Service
+  - type: web
+    name: cinepass-backend
+    env: python
+    buildCommand: "./build.sh"
+    startCommand: "gunicorn movie_discovery_system.wsgi:application"
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: DEBUG
+        value: False
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DATABASE_URL
+        fromDatabase:
+          name: cinepass-db
+          property: connectionString
+      - key: CELERY_BROKER_URL
+        fromService:
+          type: redis
+          name: cinepass-redis
+          property: connectionString
+      - key: CELERY_RESULT_BACKEND
+        fromService:
+          type: redis
+          name: cinepass-redis
+          property: connectionString
+      - key: RAZORPAY_KEY_ID
+        sync: false
+      - key: RAZORPAY_KEY_SECRET
+        sync: false
+      - key: TMDB_API_KEY
+        sync: false
+      - key: TMDB_ACCESS_TOKEN
+        sync: false
+
+  # 2. Celery Worker Background Service
+  - type: worker
+    name: cinepass-celery-worker
+    env: python
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "celery -A movie_discovery_system worker --loglevel=info"
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: cinepass-db
+          property: connectionString
+      - key: CELERY_BROKER_URL
+        fromService:
+          type: redis
+          name: cinepass-redis
+          property: connectionString
+
+  # 3. Redis Instance
+  - type: redis
+    name: cinepass-redis
+    ipAllowList: [] # Internal network only
+
+databases:
+  # 4. Managed PostgreSQL Database
+  - name: cinepass-db
+    databaseName: cinepass_db
+    user: cinepass_user

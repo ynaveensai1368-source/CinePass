@@ -1,0 +1,91 @@
+<nav class="navbar navbar-expand-lg navbar-custom sticky-top">
+    <div class="container">
+        <!-- Brand Logo (Left) -->
+        <a class="navbar-brand d-flex align-items-center me-4" href="{% url 'movies:home' %}">
+            <i class="fa-solid fa-film me-2 fs-3 text-danger"></i>
+            <span class="fw-extrabold text-white">Cine<span class="text-danger">Pass</span></span>
+        </a>
+
+        <!-- Mobile Controls -->
+        <div class="d-flex align-items-center gap-2 d-lg-none ms-auto me-2">
+            <button type="button" class="theme-toggle-btn" id="themeToggleBtnMobile" aria-label="Toggle theme">
+                <i class="fa-solid fa-moon text-info" id="themeIconMobile"></i>
+            </button>
+        </div>
+        
+        <button class="navbar-toggler border-0 text-white" type="button" data-bs-toggle="collapse" data-bs-target="#navbarContent" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+
+        <div class="collapse navbar-collapse" id="navbarContent">
+            <!-- Global Translucent Rounded Search Bar (Center) -->
+            <form class="d-flex mx-auto my-2 my-lg-0 col-12 col-lg-5" action="{% url 'movies:discovery' %}" method="GET">
+                <div class="input-group search-pill shadow-sm">
+                    <span class="input-group-text bg-transparent border-0 text-white-50 p-0 me-2"><i class="fa-solid fa-magnifying-glass"></i></span>
+                    <input class="form-control" type="search" name="q" placeholder="Search for Movies by title or keyword..." value="{{ request.GET.q|default:'' }}" aria-label="Search">
+                    <button class="btn btn-danger rounded-pill px-3 py-1 text-white fw-semibold small" type="submit">Search</button>
+                </div>
+            </form>
+
+            <!-- Nav Links & Profile (Right Aligned) -->
+            <ul class="navbar-nav ms-auto align-items-lg-center gap-2">
+                <li class="nav-item">
+                    <a class="nav-link fw-medium text-white-80 d-flex align-items-center gap-2 px-3 py-2 rounded-2" href="{% url 'movies:discovery' %}">
+                        <i class="fa-solid fa-compass text-danger"></i> <span>Explore</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link fw-medium text-white-80 d-flex align-items-center gap-2 px-3 py-2 rounded-2" href="{% url 'theaters:list' %}">
+                        <i class="fa-solid fa-building-user text-danger"></i> <span>Theaters</span>
+                    </a>
+                </li>
+
+                <!-- Theme Toggle Button (Desktop) -->
+                <li class="nav-item me-1 d-none d-lg-block">
+                    <button type="button" class="theme-toggle-btn" id="themeToggleBtn" aria-label="Toggle theme">
+                        <i class="fa-solid fa-sun text-warning" id="themeIcon"></i>
+                    </button>
+                </li>
+
+                {% if user.is_authenticated %}
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle text-white d-flex align-items-center gap-2 px-3 py-2 rounded-3 border border-secondary border-opacity-25 bg-white-5" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="fa-solid fa-circle-user fs-5 text-danger"></i>
+                            <span class="fw-semibold">{{ user.first_name|default:user.username }}</span>
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end shadow-lg border-secondary bg-dark">
+                            <li><a class="dropdown-item text-white d-flex align-items-center gap-2" href="{% url 'accounts:profile' %}"><i class="fa-solid fa-user-gear text-primary"></i> My Profile</a></li>
+                            <li><a class="dropdown-item text-white d-flex align-items-center gap-2" href="{% url 'accounts:booking_history' %}"><i class="fa-solid fa-ticket text-success"></i> Booking History</a></li>
+                            <li><a class="dropdown-item text-white d-flex align-items-center gap-2" href="{% url 'accounts:payment_history' %}"><i class="fa-solid fa-credit-card text-info"></i> Payment History</a></li>
+                            {% if user.is_staff %}
+                                <li><hr class="dropdown-divider border-secondary"></li>
+                                <li><a class="dropdown-item text-white d-flex align-items-center gap-2" href="{% url 'movies:create' %}"><i class="fa-solid fa-plus-circle text-warning"></i> Add Movie</a></li>
+                                <li><a class="dropdown-item text-white d-flex align-items-center gap-2" href="{% url 'admin:index' %}" target="_blank"><i class="fa-solid fa-shield-halved text-info"></i> Admin Panel</a></li>
+                            {% endif %}
+                            <li><hr class="dropdown-divider border-secondary"></li>
+                            <li><a class="dropdown-item text-danger d-flex align-items-center gap-2" href="{% url 'accounts:logout' %}"><i class="fa-solid fa-right-from-bracket"></i> Logout</a></li>
+                        </ul>
+                    </li>
+                {% else %}
+                    <li class="nav-item">
+                        <a class="btn btn-outline-light btn-sm rounded-pill px-3" href="{% url 'accounts:login' %}">Sign In</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="btn btn-danger btn-sm rounded-pill px-3 fw-semibold" href="{% url 'accounts:register' %}">Register</a>
+                    </li>
+                {% endif %}
+            </ul>
+        </div>
+    </div>
+</nav>
+
+<script>
+    // Sync mobile toggle button with main theme switcher
+    document.addEventListener('DOMContentLoaded', () => {
+        const mobBtn = document.getElementById('themeToggleBtnMobile');
+        const mainBtn = document.getElementById('themeToggleBtn');
+        if (mobBtn && mainBtn) {
+            mobBtn.addEventListener('click', () => mainBtn.click());
+        }
+    });
+</script>

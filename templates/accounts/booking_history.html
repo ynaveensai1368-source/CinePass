@@ -1,0 +1,88 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}My Booking History - CinePass{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+
+    <div class="d-flex justify-content-between align-items-center mb-4 pb-3 border-bottom border-secondary border-opacity-25">
+        <div>
+            <h2 class="fw-bold mb-1 text-body">
+                <i class="fa-solid fa-ticket text-danger me-2"></i> My Booking History
+            </h2>
+            <p class="text-secondary mb-0">View reservations, download PDF tickets with QR verification, or manage bookings</p>
+        </div>
+    </div>
+
+    {% if bookings %}
+        <div class="row row-cols-1 g-3">
+            {% for booking in bookings %}
+                <div class="col">
+                    <div class="card bg-card border-secondary rounded-4 p-3 shadow-sm">
+                        <div class="row align-items-center">
+                            <!-- Movie Poster Thumbnail -->
+                            <div class="col-md-2 col-lg-1 text-center mb-3 mb-md-0">
+                                <img src="{{ booking.show.movie.get_poster_url }}" alt="{{ booking.show.movie.title }}" class="img-fluid rounded shadow-sm" style="max-height: 110px;" onerror="this.onerror=null; this.src='{% static 'images/fallback_poster.png' %}';">
+                            </div>
+
+                            <!-- Details -->
+                            <div class="col-md-6 col-lg-7">
+                                <div class="d-flex align-items-center gap-2 mb-1">
+                                    <h5 class="fw-bold mb-0 text-body">{{ booking.show.movie.title }}</h5>
+                                    {% if booking.status == 'CONFIRMED' %}
+                                        <span class="badge bg-success border border-success">Confirmed</span>
+                                    {% else %}
+                                        <span class="badge bg-danger">Cancelled</span>
+                                    {% endif %}
+                                </div>
+                                <p class="text-secondary small mb-1">
+                                    <i class="fa-solid fa-building-user text-danger me-1"></i> {{ booking.show.screen.theater.name }} ({{ booking.show.screen.theater.city.name }}) — {{ booking.show.screen.name }}
+                                </p>
+                                <div class="d-flex flex-wrap gap-3 small text-secondary">
+                                    <span><i class="fa-regular fa-clock me-1"></i> Showtime: <strong class="text-white">{{ booking.show.start_time|date:"M d, Y - h:i A" }}</strong></span>
+                                    <span><i class="fa-solid fa-chair me-1"></i> Seats: <strong class="text-white">{{ booking.total_seats }} Ticket(s)</strong></span>
+                                    <span><i class="fa-solid fa-receipt me-1"></i> Total: <strong class="text-success fw-bold">₹{{ booking.grand_total }}</strong></span>
+                                </div>
+                            </div>
+
+                            <!-- Actions & Ticket Downloads -->
+                            <div class="col-md-4 col-lg-4 text-md-end mt-3 mt-md-0">
+                                <span class="d-block text-secondary small mb-2">Booking Reference: <strong class="text-white">#{{ booking.booking_number|default:booking.id }}</strong></span>
+                                <div class="d-flex flex-column flex-sm-row justify-content-md-end gap-2">
+                                    {% if booking.status == 'CONFIRMED' %}
+                                        <a href="{% url 'bookings:download_ticket' booking.id %}" class="btn btn-accent btn-sm">
+                                            <i class="fa-solid fa-file-pdf me-1"></i> Download Ticket
+                                        </a>
+                                        <form method="POST" action="{% url 'bookings:cancel_booking' booking.id %}" class="d-inline" onsubmit="return confirm('Are you sure you want to cancel this ticket booking?');">
+                                            {% csrf_token %}
+                                            <button type="submit" class="btn btn-outline-danger btn-sm">
+                                                <i class="fa-solid fa-xmark me-1"></i> Cancel
+                                            </button>
+                                        </form>
+                                    {% else %}
+                                        <button class="btn btn-secondary btn-sm" disabled>Cancelled</button>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+
+        {% include 'includes/pagination.html' with page_obj=page_obj is_paginated=is_paginated %}
+
+    {% else %}
+        <div class="text-center py-5">
+            <div class="p-5 border border-secondary border-opacity-25 rounded-4 bg-card">
+                <i class="fa-solid fa-ticket-simple display-1 text-secondary mb-3"></i>
+                <h4 class="fw-bold">No Bookings Found</h4>
+                <p class="text-secondary">You haven't booked any movie tickets yet.</p>
+                <a href="{% url 'movies:discovery' %}" class="btn btn-accent mt-2">Explore Movies Now</a>
+            </div>
+        </div>
+    {% endif %}
+
+</div>
+{% endblock %}

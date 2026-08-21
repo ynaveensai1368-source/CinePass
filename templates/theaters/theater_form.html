@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+
+{% block title %}Add Theater - CinePass Admin{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card bg-dark border-secondary rounded-4 p-4 shadow-lg">
+                <h3 class="text-white fw-bold mb-4">Add New Theater</h3>
+
+                <form method="POST">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label class="form-label text-secondary small fw-semibold">Theater Name</label>
+                        {{ form.name }}
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-secondary small fw-semibold">City</label>
+                        {{ form.city }}
+                    </div>
+                    <div class="mb-4">
+                        <label class="form-label text-secondary small fw-semibold">Address</label>
+                        {{ form.address }}
+                    </div>
+                    <button type="submit" class="btn btn-accent w-100">Save Theater</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

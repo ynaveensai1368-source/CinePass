@@ -1,0 +1,78 @@
+{% load static %}
+<div class="movie-card">
+    <div class="poster-wrapper position-relative">
+        <a href="{% url 'movies:detail' movie.slug %}" class="position-absolute top-0 start-0 w-100 h-100 d-block z-1" aria-label="{{ movie.title }}">
+            <img src="{{ movie.get_poster_url }}" alt="{{ movie.title }}" class="poster-img" loading="lazy" onerror="this.onerror=null; this.src='{% static 'images/fallback_poster.png' %}';">
+        </a>
+        
+        {% if movie.rating and movie.rating > 0 %}
+            <span class="rating-badge z-2" title="TMDb Rating">
+                <i class="fa-solid fa-star text-warning me-1"></i>{{ movie.rating }}
+            </span>
+        {% else %}
+            <span class="rating-badge text-secondary opacity-75 z-2" title="Rating Coming Soon">
+                <i class="fa-solid fa-star text-secondary me-1"></i>N/A
+            </span>
+        {% endif %}
+
+        <span class="language-badge z-2">
+            {{ movie.language.name }}
+        </span>
+
+        {% if movie.trailer_url %}
+            <button type="button" class="card-play-btn play-trailer-btn z-3" 
+                    data-bs-toggle="modal"
+                    data-bs-target="#globalTrailerModal"
+                    data-trailer-url="{{ movie.get_clean_trailer_url }}" 
+                    data-trailer-title="{{ movie.title }}" 
+                    data-watch-url="{{ movie.get_youtube_watch_url }}"
+                    data-trailer-key="{{ movie.trailer_youtube_key }}"
+                    title="Play Official Trailer" 
+                    aria-label="Play Trailer">
+                <i class="fa-solid fa-play"></i>
+            </button>
+        {% endif %}
+    </div>
+
+    <div class="p-3 d-flex flex-column flex-grow-1">
+        <h6 class="fw-bold mb-1 text-truncate" title="{{ movie.title }}">
+            <a href="{% url 'movies:detail' movie.slug %}" class="text-body text-decoration-none">
+                {{ movie.title }}
+            </a>
+        </h6>
+
+        <div class="mb-2">
+            {% for genre in movie.genres.all %}
+                <span class="genre-tag">{{ genre.name }}</span>
+            {% endfor %}
+        </div>
+
+        <div class="d-flex justify-content-between align-items-center mt-auto pt-2 border-top border-secondary border-opacity-25 small text-secondary">
+            <span><i class="fa-regular fa-clock me-1"></i> {{ movie.formatted_duration }}</span>
+            <span><i class="fa-regular fa-calendar me-1"></i> {{ movie.release_date|date:"Y" }}</span>
+        </div>
+
+        <!-- Dynamic Action Button: Theatrical vs Catalog / Non-Theatrical -->
+        {% if movie.has_active_shows %}
+            <a href="{% url 'movies:detail' movie.slug %}" class="btn btn-accent btn-sm w-100 mt-3 shadow-sm">
+                <i class="fa-solid fa-ticket me-1"></i> Book Tickets
+            </a>
+        {% elif movie.trailer_url %}
+            <button type="button" class="btn btn-outline-accent btn-sm w-100 mt-3 play-trailer-btn"
+                    data-bs-toggle="modal"
+                    data-bs-target="#globalTrailerModal"
+                    data-trailer-url="{{ movie.get_clean_trailer_url }}"
+                    data-trailer-title="{{ movie.title }}"
+                    data-watch-url="{{ movie.get_youtube_watch_url }}"
+                    data-trailer-key="{{ movie.trailer_youtube_key }}">
+                <i class="fa-solid fa-play me-1"></i> Watch Trailer
+            </button>
+
+        {% else %}
+            <a href="{% url 'movies:detail' movie.slug %}" class="btn btn-outline-secondary btn-sm w-100 mt-3 text-light">
+                <i class="fa-solid fa-circle-info me-1"></i> View Details
+            </a>
+        {% endif %}
+    </div>
+</div>
+

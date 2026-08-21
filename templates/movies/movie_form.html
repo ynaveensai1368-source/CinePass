@@ -1,0 +1,89 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{% if object %}Edit Movie - {{ object.title }}{% else %}Add New Movie{% endif %} - CinePass Admin{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card bg-dark border-secondary rounded-4 shadow-lg p-4">
+                <h3 class="text-white fw-bold mb-4">
+                    <i class="fa-solid fa-clapperboard text-danger me-2"></i>
+                    {% if object %}Edit Movie: {{ object.title }}{% else %}Add New Movie{% endif %}
+                </h3>
+
+                <form method="POST" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    
+                    <div class="row g-3">
+                        <div class="col-md-12">
+                            <label class="form-label text-secondary small fw-semibold">Movie Title</label>
+                            {{ form.title }}
+                        </div>
+
+                        <div class="col-md-12">
+                            <label class="form-label text-secondary small fw-semibold">Synopsis / Description</label>
+                            {{ form.description }}
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label text-secondary small fw-semibold">Language</label>
+                            {{ form.language }}
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label text-secondary small fw-semibold">Duration (minutes)</label>
+                            {{ form.duration }}
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label text-secondary small fw-semibold">Release Date</label>
+                            {{ form.release_date }}
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label text-secondary small fw-semibold">Rating (0.0 to 10.0)</label>
+                            {{ form.rating }}
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label text-secondary small fw-semibold">Popularity Score</label>
+                            {{ form.popularity }}
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label text-secondary small fw-semibold">Trailer Link (URL)</label>
+                            {{ form.trailer_url }}
+                        </div>
+
+                        <div class="col-md-12">
+                            <label class="form-label text-secondary small fw-semibold">Movie Poster Image</label>
+                            {{ form.poster }}
+                        </div>
+
+                        <div class="col-md-12">
+                            <label class="form-label text-secondary small fw-semibold">Genres</label>
+                            <div class="d-flex flex-wrap gap-3 bg-body-tertiary p-3 rounded border border-secondary">
+                                {{ form.genres }}
+                            </div>
+                        </div>
+
+                        <div class="col-md-12">
+                            <div class="form-check mt-2">
+                                {{ form.is_active }}
+                                <label class="form-check-label text-white ms-2">Is Active (Visible in Discovery Listings)</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="d-flex gap-3 mt-4 pt-3 border-top border-secondary">
+                        <button type="submit" class="btn btn-accent px-4">Save Movie</button>
+                        <a href="{% url 'movies:discovery' %}" class="btn btn-outline-secondary px-4">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

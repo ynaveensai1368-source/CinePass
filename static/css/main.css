@@ -1,0 +1,385 @@
+/* ==========================================================================
+   Movie Discovery System - Modern Light & Dark Theme System
+   BookMyShow & Netflix Inspired Hybrid Design System
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   Theme Tokens (Default Dark)
+   -------------------------------------------------------------------------- */
+:root, [data-bs-theme="dark"] {
+    --bg-main: #0f172a;
+    --bg-card: #1e293b;
+    --bg-card-hover: #334155;
+    --bg-input: rgba(255, 255, 255, 0.08);
+    --navbar-bg: rgba(15, 23, 42, 0.92);
+    --footer-bg: #0b1120;
+    --text-primary: #f8fafc;
+    --text-secondary: #94a3b8;
+    --border-color: rgba(255, 255, 255, 0.12);
+    --accent-red: #ef4444;
+    --accent-red-hover: #dc2626;
+    --badge-bg: rgba(239, 68, 68, 0.2);
+    --glass-border: rgba(255, 255, 255, 0.15);
+    --shadow-color: rgba(0, 0, 0, 0.6);
+    --rating-star: #f59e0b;
+}
+
+[data-bs-theme="light"] {
+    --bg-main: #f1f5f9;
+    --bg-card: #ffffff;
+    --bg-card-hover: #f8fafc;
+    --bg-input: #ffffff;
+    --navbar-bg: rgba(255, 255, 255, 0.9);
+    --footer-bg: #e2e8f0;
+    --text-primary: #0f172a;
+    --text-secondary: #475569;
+    --border-color: rgba(0, 0, 0, 0.1);
+    --accent-red: #e11d48;
+    --accent-red-hover: #be123c;
+    --badge-bg: rgba(225, 29, 72, 0.1);
+    --glass-border: rgba(0, 0, 0, 0.12);
+    --shadow-color: rgba(0, 0, 0, 0.08);
+    --rating-star: #d97706;
+}
+
+/* Global Transitions */
+* {
+    transition: background-color 0.3s ease, border-color 0.3s ease, color 0.2s ease;
+}
+
+body {
+    background-color: var(--bg-main) !important;
+    color: var(--text-primary) !important;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow-x: hidden;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+    width: 8px;
+}
+::-webkit-scrollbar-track {
+    background: var(--bg-main);
+}
+::-webkit-scrollbar-thumb {
+    background: #475569;
+    border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: var(--accent-red);
+}
+
+/* --------------------------------------------------------------------------
+   Navbar & Navigation
+   -------------------------------------------------------------------------- */
+.navbar-custom {
+    background: var(--navbar-bg) !important;
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.navbar-brand {
+    font-weight: 800;
+    font-size: 1.5rem;
+    color: var(--text-primary) !important;
+}
+
+.navbar-brand span {
+    color: var(--accent-red);
+}
+
+.theme-toggle-btn {
+    background: transparent;
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    border-radius: 50%;
+    width: 38px;
+    height: 38px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+.theme-toggle-btn:hover {
+    border-color: var(--accent-red);
+    color: var(--accent-red);
+}
+
+/* --------------------------------------------------------------------------
+   Hero Carousel Banner
+   -------------------------------------------------------------------------- */
+.hero-banner {
+    position: relative;
+    border-radius: 1.25rem;
+    overflow: hidden;
+    box-shadow: 0 20px 40px var(--shadow-color);
+}
+
+.hero-backdrop {
+    height: 460px;
+    object-fit: cover;
+    width: 100%;
+    filter: brightness(0.70);
+}
+
+.hero-content {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 2.75rem;
+    background: linear-gradient(to top, #0d0f12 0%, rgba(0, 0, 0, 0.65) 60%, transparent 100%);
+}
+
+.btn-glass {
+    background: rgba(255, 255, 255, 0.10) !important;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    color: #ffffff !important;
+    border: 1px solid rgba(255, 255, 255, 0.20) !important;
+    border-radius: 0.5rem;
+    font-weight: 600;
+    padding: 0.65rem 1.4rem;
+}
+
+.btn-glass:hover {
+    background: rgba(255, 255, 255, 0.20) !important;
+    border-color: rgba(255, 255, 255, 0.35) !important;
+    color: #ffffff !important;
+}
+
+.search-pill {
+    background: rgba(255, 255, 255, 0.08) !important;
+    border: 1px solid rgba(255, 255, 255, 0.15) !important;
+    border-radius: 9999px !important;
+    padding: 3px 6px 3px 16px;
+    transition: all 0.2s ease;
+}
+
+.search-pill:hover, .search-pill:focus-within {
+    background: rgba(255, 255, 255, 0.14) !important;
+    border-color: rgba(239, 68, 68, 0.5) !important;
+    box-shadow: 0 0 12px rgba(239, 68, 68, 0.25) !important;
+}
+
+.search-pill .form-control {
+    background: transparent !important;
+    border: none !important;
+    color: #f8fafc !important;
+    box-shadow: none !important;
+}
+
+.search-pill .form-control::placeholder {
+    color: #94a3b8 !important;
+    opacity: 0.9;
+}
+
+/* High Contrast Section Subtitles */
+.text-secondary, .text-muted, p.text-secondary, span.text-secondary {
+    color: #94a3b8 !important;
+}
+
+/* --------------------------------------------------------------------------
+   Movie Cards & Badges
+   -------------------------------------------------------------------------- */
+.movie-card {
+    background: var(--bg-card) !important;
+    border: 1px solid var(--border-color) !important;
+    border-radius: 16px;
+    overflow: hidden;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 4px 12px var(--shadow-color);
+}
+
+.movie-card:hover {
+    transform: translateY(-6px);
+    border-color: var(--accent-red) !important;
+    box-shadow: 0 16px 32px rgba(225, 29, 72, 0.2) !important;
+}
+
+.poster-wrapper {
+    position: relative;
+    padding-top: 148%;
+    overflow: hidden;
+    background-color: var(--bg-input);
+}
+
+.poster-img {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.4s ease;
+}
+
+.movie-card:hover .poster-img {
+    transform: scale(1.06);
+}
+
+.rating-badge {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    background: var(--navbar-bg);
+    backdrop-filter: blur(8px);
+    color: var(--rating-star);
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: 20px;
+    border: 1px solid var(--border-color);
+    font-size: 0.85rem;
+}
+
+.language-badge {
+    position: absolute;
+    bottom: 12px;
+    left: 12px;
+    background: var(--badge-bg);
+    color: var(--accent-red);
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: 6px;
+    border: 1px solid var(--accent-red);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+}
+
+.card-play-btn {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0.9);
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: rgba(15, 23, 42, 0.75);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 2px solid rgba(255, 255, 255, 0.85);
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+    opacity: 0;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 2;
+    cursor: pointer;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+}
+
+.card-play-btn i {
+    margin-left: 3px;
+}
+
+.movie-card:hover .card-play-btn {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+}
+
+.card-play-btn:hover {
+    background: var(--accent-red) !important;
+    border-color: var(--accent-red) !important;
+    color: #ffffff !important;
+    transform: translate(-50%, -50%) scale(1.15) !important;
+    box-shadow: 0 0 20px rgba(239, 68, 68, 0.6) !important;
+}
+
+/* --------------------------------------------------------------------------
+   Buttons & Inputs
+   -------------------------------------------------------------------------- */
+.btn-accent {
+    background-color: var(--accent-red) !important;
+    color: #ffffff !important;
+    border: none;
+    font-weight: 600;
+    border-radius: 10px;
+    padding: 0.55rem 1.2rem;
+}
+
+.btn-accent:hover {
+    background-color: var(--accent-red-hover) !important;
+    box-shadow: 0 6px 18px rgba(225, 29, 72, 0.35);
+}
+
+.btn-outline-accent {
+    border: 1px solid var(--accent-red) !important;
+    color: var(--accent-red) !important;
+    background: transparent;
+    font-weight: 600;
+    border-radius: 10px;
+}
+
+.btn-outline-accent:hover {
+    background-color: var(--accent-red) !important;
+    color: #ffffff !important;
+}
+
+.filter-card, .theme-card {
+    background: var(--bg-card) !important;
+    border: 1px solid var(--border-color) !important;
+    border-radius: 16px;
+    padding: 1.5rem;
+}
+
+.form-select, .form-control {
+    background-color: var(--bg-input) !important;
+    border: 1px solid var(--border-color) !important;
+    color: var(--text-primary) !important;
+    border-radius: 10px;
+}
+
+.form-select:focus, .form-control:focus {
+    border-color: var(--accent-red) !important;
+    box-shadow: 0 0 0 0.25rem rgba(225, 29, 72, 0.2) !important;
+}
+
+.genre-tag {
+    background: var(--badge-bg);
+    color: var(--text-secondary);
+    font-size: 0.75rem;
+    padding: 3px 8px;
+    border-radius: 6px;
+    display: inline-block;
+    margin-right: 4px;
+    margin-bottom: 4px;
+    font-weight: 500;
+}
+
+/* --------------------------------------------------------------------------
+   Offcanvas Filters for Mobile
+   -------------------------------------------------------------------------- */
+.offcanvas {
+    background-color: var(--bg-card) !important;
+    color: var(--text-primary) !important;
+}
+
+/* Footer */
+footer {
+    margin-top: auto;
+    background: var(--footer-bg) !important;
+    border-top: 1px solid var(--border-color);
+    padding: 2.5rem 0;
+    color: var(--text-secondary);
+}
+
+/* Skeleton Loading Shimmer */
+.skeleton {
+    background: linear-gradient(90deg, var(--bg-card) 25%, var(--bg-card-hover) 50%, var(--bg-card) 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}

@@ -1,0 +1,292 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Checkout & Payment - {{ show.movie.title }} | CinePass{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card bg-card border-glass rounded-4 shadow-lg overflow-hidden">
+                <!-- Header -->
+                <div class="card-header bg-dark border-bottom border-glass p-4">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div>
+                            <span class="badge bg-danger text-uppercase mb-1">Razorpay Test Mode</span>
+                            <h3 class="mb-0 font-outfit text-white fw-bold">Checkout & Payment</h3>
+                        </div>
+                        <i class="fa-solid fa-shield-halved text-danger fa-2x"></i>
+                    </div>
+                </div>
+
+                <div class="card-body p-4">
+                    <!-- Movie & Venue Details Grid -->
+                    <div class="row align-items-center mb-4 pb-4 border-bottom border-glass">
+                        <div class="col-md-3 mb-3 mb-md-0">
+                            <img src="{{ show.movie.get_poster_url }}" alt="{{ show.movie.title }}" class="img-fluid rounded-3 shadow">
+                        </div>
+                        <div class="col-md-9">
+                            <h4 class="text-white fw-bold mb-2">{{ show.movie.title }}</h4>
+                            <p class="text-secondary small mb-1">
+                                <i class="fa-solid fa-location-dot text-danger me-2"></i><strong>{{ show.screen.theater.name }}</strong> ({{ show.screen.theater.city.name }}) - {{ show.screen.name }}
+                            </p>
+                            <p class="text-secondary small mb-1">
+                                <i class="fa-solid fa-clock text-warning me-2"></i>{{ show.start_time|date:"l, F d, Y at h:i A" }}
+                            </p>
+                            <p class="text-secondary small mb-0">
+                                <i class="fa-solid fa-couch text-success me-2"></i>Seats: 
+                                <span class="font-monospace fw-bold text-white">
+                                    {% for seat in seats %}{{ seat.row }}{{ seat.number }}{% if not forloop.last %}, {% endif %}{% endfor %}
+                                </span>
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Payment Failure & Retry Alert -->
+                    <div id="paymentErrorAlert" class="alert alert-danger d-none rounded-3 p-3 mb-4 border border-danger border-opacity-50">
+                        <div class="d-flex align-items-center mb-2">
+                            <i class="fa-solid fa-triangle-exclamation text-danger fs-4 me-2"></i>
+                            <strong class="fs-6">Payment Verification Notice</strong>
+                        </div>
+                        <p id="paymentErrorText" class="small mb-3 text-white-50">Payment signature could not be verified.</p>
+                        <div class="d-flex gap-2">
+                            <button id="retryPaymentBtn" type="button" class="btn btn-warning btn-sm fw-bold px-3" onclick="retryPaymentFlow()">
+                                <i class="fa-solid fa-rotate-right me-1"></i> Retry Payment
+                            </button>
+                            <a href="{% url 'shows:seat_selection' show.id %}" class="btn btn-outline-light btn-sm">
+                                <i class="fa-solid fa-couch me-1"></i> Choose Different Seats
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- Payment Summary Breakdown -->
+                    <h5 class="text-white fw-bold mb-3 font-outfit">Payment Breakdown</h5>
+                    <div class="bg-dark p-3 rounded-3 mb-4">
+                        <div class="d-flex justify-content-between text-secondary mb-2">
+                            <span>Ticket Subtotal ({{ seats|length }} Seat{% if seats|length > 1 %}s{% endif %})</span>
+                            <span class="text-white font-monospace">₹{{ total_price|floatformat:2 }}</span>
+                        </div>
+                        <div class="d-flex justify-content-between text-secondary mb-2">
+                            <span>Convenience & Booking Fee</span>
+                            <span class="text-white font-monospace">₹{{ convenience_fee|floatformat:2 }}</span>
+                        </div>
+                        <hr class="border-glass my-2">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="text-white fw-bold">Grand Total Payable</span>
+                            <span class="h3 text-danger fw-bold font-monospace mb-0">₹{{ grand_total|floatformat:2 }}</span>
+                        </div>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="d-grid gap-2">
+                        <button id="rzp-button" class="btn btn-accent btn-lg py-3 rounded-3 fw-bold">
+                            <i class="fa-solid fa-credit-card me-2"></i>Pay ₹{{ grand_total|floatformat:2 }} via Razorpay Gateway
+                        </button>
+
+                        <button id="test-pay-button" class="btn btn-outline-success btn-lg py-2.5 rounded-3 fw-bold mt-2">
+                            <i class="fa-solid fa-flask me-2"></i>Complete Test Payment (Demo Sandbox)
+                        </button>
+                    </div>
+                </div>
+
+                <div class="card-footer bg-dark border-top border-glass text-center text-secondary small py-3">
+                    <i class="fa-solid fa-circle-check text-success me-1"></i> Secure 256-bit SSL encrypted transaction via Razorpay Gateway
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- Razorpay Checkout SDK -->
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+<script>
+    let activeOrderId = "{{ razorpay_order_id }}";
+
+    async function submitPaymentVerification(payload) {
+        try {
+            const verifyRes = await fetch("/payments/verify/", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": getCookie("csrftoken")
+                },
+                body: JSON.stringify(payload)
+            });
+
+            const data = await verifyRes.json();
+            if (data.success) {
+                alert("🎉 Payment Successful! Ticket confirmed and sent to your email.");
+                window.location.href = "{% url 'accounts:booking_history' %}";
+            } else {
+                showPaymentFailureUI(data.message || "Payment verification failed.");
+            }
+        } catch (err) {
+            console.error(err);
+            showPaymentFailureUI("Network error occurred during payment verification.");
+        }
+    }
+
+    function showPaymentFailureUI(errorMessage) {
+        const errorAlert = document.getElementById('paymentErrorAlert');
+        const errorText = document.getElementById('paymentErrorText');
+        if (errorAlert && errorText) {
+            errorText.textContent = errorMessage;
+            errorAlert.classList.remove('d-none');
+            errorAlert.scrollIntoView({ behavior: 'smooth' });
+        } else {
+            alert("❌ Payment Failed: " + errorMessage);
+        }
+    }
+
+    const options = {
+        "key": "{{ razorpay_key_id }}",
+        "amount": "{{ razorpay_amount_paisa }}",
+        "currency": "INR",
+        "name": "CinePass Ticket Booking",
+        "description": "{{ show.movie.title }} - {{ seats|length }} Ticket(s)",
+        "order_id": "{{ razorpay_order_id }}",
+        "handler": function (response) {
+            submitPaymentVerification({
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature,
+                booking_id: {{ booking.id }}
+            });
+        },
+        "prefill": {
+            "name": "{{ request.user.get_full_name|default:request.user.username }}",
+            "email": "{{ request.user.email }}",
+            "contact": "{{ request.user.phone_number|default:'' }}"
+        },
+        "theme": {
+            "color": "#e11d48"
+        },
+        "modal": {
+            "ondismiss": function() {
+                console.log("Payment modal dismissed by user. Releasing hold.");
+                fetch("/payments/api/cancel/", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "X-CSRFToken": getCookie("csrftoken")
+                    },
+                    body: JSON.stringify({
+                        booking_id: {{ booking.id }},
+                        order_id: activeOrderId
+                    })
+                }).catch(err => console.error("Error releasing hold on cancel:", err));
+            }
+        }
+    };
+
+    document.getElementById('rzp-button').onclick = function (e) {
+        e.preventDefault();
+        try {
+            const rzp1 = new Razorpay(options);
+            rzp1.open();
+        } catch (err) {
+            console.warn("Razorpay SDK opening failed, falling back to sandbox test simulation:", err);
+            simulateDemoPayment();
+        }
+    };
+
+    document.getElementById('test-pay-button').onclick = function (e) {
+        e.preventDefault();
+        simulateDemoPayment();
+    };
+
+    async function simulateDemoPayment() {
+        const demoPaymentId = "pay_demo_" + Date.now();
+        try {
+            // Request genuine HMAC-SHA256 signature for test sandbox
+            const signRes = await fetch("/payments/api/demo-sign/", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": getCookie("csrftoken")
+                },
+                body: JSON.stringify({
+                    order_id: activeOrderId,
+                    payment_id: demoPaymentId
+                })
+            });
+            const signData = await signRes.json();
+            const signature = signData.signature;
+
+            submitPaymentVerification({
+                razorpay_order_id: activeOrderId,
+                razorpay_payment_id: demoPaymentId,
+                razorpay_signature: signature,
+                booking_id: {{ booking.id }}
+            });
+        } catch (err) {
+            console.error("Demo signing error:", err);
+            submitPaymentVerification({
+                razorpay_order_id: activeOrderId,
+                razorpay_payment_id: demoPaymentId,
+                razorpay_signature: "sig_invalid_fallback",
+                booking_id: {{ booking.id }}
+            });
+        }
+    }
+
+    async function retryPaymentFlow() {
+        const retryBtn = document.getElementById('retryPaymentBtn');
+        if (retryBtn) {
+            retryBtn.disabled = true;
+            retryBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i> Retrying...';
+        }
+        try {
+            const res = await fetch("/payments/api/retry/", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": getCookie("csrftoken")
+                },
+                body: JSON.stringify({ booking_id: {{ booking.id }} })
+            });
+            const data = await res.json();
+            if (data.success) {
+                activeOrderId = data.razorpay_order_id;
+                options.order_id = data.razorpay_order_id;
+                document.getElementById('paymentErrorAlert').classList.add('d-none');
+                alert("Order refreshed! Opening payment modal...");
+                try {
+                    const rzp = new Razorpay(options);
+                    rzp.open();
+                } catch (e) {
+                    simulateDemoPayment();
+                }
+            } else {
+                alert(data.message || "Failed to retry payment. Seat hold may have expired.");
+                window.location.href = "{% url 'shows:seat_selection' show.id %}";
+            }
+        } catch (err) {
+            console.error(err);
+            alert("Error retrying payment.");
+        } finally {
+            if (retryBtn) {
+                retryBtn.disabled = false;
+                retryBtn.innerHTML = '<i class="fa-solid fa-rotate-right me-1"></i> Retry Payment';
+            }
+        }
+    }
+
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+</script>
+{% endblock %}

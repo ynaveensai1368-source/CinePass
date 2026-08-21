@@ -1,0 +1,46 @@
+{% extends 'base.html' %}
+
+{% block title %}Add Movie Show - CinePass Admin{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-7">
+            <div class="card bg-dark border-secondary rounded-4 p-4 shadow-lg">
+                <h3 class="text-white fw-bold mb-4">Add Movie Show Screening</h3>
+
+                <form method="POST">
+                    {% csrf_token %}
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label text-secondary small fw-semibold">Movie</label>
+                            {{ form.movie }}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label text-secondary small fw-semibold">Theater</label>
+                            {{ form.theater }}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label text-secondary small fw-semibold">Show Time</label>
+                            {{ form.show_time }}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label text-secondary small fw-semibold">Ticket Price ($)</label>
+                            {{ form.ticket_price }}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label text-secondary small fw-semibold">Available Seats</label>
+                            {{ form.available_seats }}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label text-secondary small fw-semibold">Total Capacity</label>
+                            {{ form.total_seats }}
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-accent w-100 mt-4">Create Show</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

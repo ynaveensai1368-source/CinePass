@@ -1,0 +1,653 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Select Seats for {{ show.movie.title }} - CinePass{% endblock %}
+
+{% block extra_css %}
+<style>
+  .screen-curve {
+    height: 28px;
+    width: 80%;
+    margin: 0 auto 2.5rem auto;
+    border-top: 4px solid #ef4444;
+    border-radius: 50% 50% 0 0 / 100% 100% 0 0;
+    box-shadow: 0 -8px 24px rgba(239, 68, 68, 0.4);
+    position: relative;
+  }
+  .screen-text {
+    position: absolute;
+    top: -24px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    color: rgba(255, 255, 255, 0.5);
+    text-transform: uppercase;
+  }
+
+  .category-divider {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin: 1.25rem 0 0.75rem 0;
+    padding-bottom: 0.35rem;
+    border-bottom: 1px dashed rgba(255, 255, 255, 0.1);
+    width: 100%;
+    text-align: left;
+  }
+
+  .seat-map-wrapper {
+    overflow-x: auto;
+    padding: 1.5rem 0.5rem;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .seat-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    align-items: center;
+    min-width: 580px;
+  }
+
+  .seat-row {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+  }
+
+  .row-label {
+    width: 28px;
+    font-weight: 700;
+    color: #94a3b8;
+    text-align: center;
+    font-size: 0.85rem;
+  }
+
+  .aisle-gap {
+    width: 24px;
+  }
+
+  .seat-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 6px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.15s ease-in-out;
+    border: 1px solid var(--border-color, rgba(255, 255, 255, 0.15));
+    background: var(--bg-card-hover, rgba(255, 255, 255, 0.06));
+    color: var(--text-main, #f8fafc);
+    user-select: none;
+  }
+
+  .seat-btn:hover:not(:disabled) {
+    border-color: #ef4444;
+    transform: scale(1.12);
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.35);
+  }
+
+  /* Seat Status Colors */
+  .seat-btn.available {
+    background: var(--bg-card-hover, rgba(255, 255, 255, 0.08));
+    border-color: var(--border-color, rgba(255, 255, 255, 0.2));
+    color: var(--text-main, #f8fafc);
+  }
+
+  .seat-btn.selected {
+    background: #ef4444 !important;
+    border-color: #ef4444 !important;
+    color: #ffffff !important;
+    box-shadow: 0 0 16px rgba(239, 68, 68, 0.6) !important;
+    transform: scale(1.08);
+  }
+
+  .seat-btn.reserved {
+    background: rgba(245, 158, 11, 0.25) !important;
+    border-color: #f59e0b !important;
+    color: #f59e0b !important;
+    cursor: not-allowed;
+  }
+
+  .seat-btn.user_selected {
+    background: #ef4444 !important;
+    border-color: #ef4444 !important;
+    color: #ffffff !important;
+  }
+
+  .seat-btn.booked {
+    background: rgba(255, 255, 255, 0.03) !important;
+    border-color: rgba(255, 255, 255, 0.05) !important;
+    color: rgba(255, 255, 255, 0.2) !important;
+    cursor: not-allowed;
+    text-decoration: line-through;
+  }
+
+  .timer-badge {
+    background: rgba(239, 68, 68, 0.15);
+    border: 1px solid #ef4444;
+    color: #ef4444;
+    font-family: monospace;
+    font-size: 1.1rem;
+    font-weight: 700;
+    padding: 0.35rem 0.75rem;
+    border-radius: 8px;
+  }
+
+  .ws-indicator {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 6px;
+  }
+  .ws-indicator.connected { background: #10b981; box-shadow: 0 0 8px #10b981; }
+  .ws-indicator.disconnected { background: #ef4444; }
+
+  .sticky-summary {
+    position: sticky;
+    top: 80px;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+
+  <!-- Show Header Summary -->
+  <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4 pb-3 border-bottom border-white-10">
+    <div>
+      <h2 class="fw-extrabold text-white mb-1">
+        <i class="fa-solid fa-film text-danger me-2"></i> {{ movie.title }}
+      </h2>
+      <p class="text-secondary small mb-0">
+        <i class="fa-solid fa-building-user text-danger me-1"></i> {{ theater.name }} ({{ show.screen.theater.city.name }}) — {{ screen.name }} ({{ screen.get_screen_type_display }})
+        <span class="ms-2"><i class="fa-regular fa-clock me-1"></i> {{ show.start_time|date:"M d, Y - h:i A" }}</span>
+      </p>
+    </div>
+    
+    <div class="d-flex align-items-center gap-3">
+      <span class="badge bg-slate-800 text-secondary border border-white-10 px-3 py-2 rounded-pill small">
+        <span id="wsStatusDot" class="ws-indicator disconnected"></span>
+        <span id="wsStatusText">Connecting Live...</span>
+      </span>
+
+      <div id="timerContainer" class="d-none align-items-center gap-2">
+        <span class="text-secondary small font-semibold">Expires:</span>
+        <div class="timer-badge" id="timerCountdown">02:00</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-4">
+    
+    <!-- Seat Map Container (Left / Top) -->
+    <div class="col-lg-8">
+      <div class="card bg-card border-secondary rounded-4 p-4 shadow-lg">
+        
+        <!-- Screen Curved Graphic -->
+        <div class="screen-curve">
+          <span class="screen-text"><i class="fa-solid fa-play me-1"></i> SCREEN THIS WAY</span>
+        </div>
+
+        <!-- Seat Map Interactive Grid -->
+        <div class="seat-map-wrapper">
+          <div id="seatGrid" class="seat-grid">
+            <div class="text-center py-5 text-secondary">
+              <i class="fa-solid fa-spinner fa-spin fs-3 text-danger mb-2"></i>
+              <p>Loading real-time seat layout...</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Legend -->
+        <div class="d-flex flex-wrap justify-content-center gap-4 mt-4 pt-3 border-top border-white-10 small text-secondary">
+          <div class="d-flex align-items-center gap-2">
+            <span class="seat-btn available" style="width: 22px; height: 22px; pointer-events: none;"></span>
+            <span>Available</span>
+          </div>
+          <div class="d-flex align-items-center gap-2">
+            <span class="seat-btn selected" style="width: 22px; height: 22px; pointer-events: none;"></span>
+            <span>Selected</span>
+          </div>
+          <div class="d-flex align-items-center gap-2">
+            <span class="seat-btn reserved" style="width: 22px; height: 22px; pointer-events: none;"></span>
+            <span>Temporarily Reserved</span>
+          </div>
+          <div class="d-flex align-items-center gap-2">
+            <span class="seat-btn booked" style="width: 22px; height: 22px; pointer-events: none;"></span>
+            <span>Booked</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Booking Summary Sidebar (Right) -->
+    <div class="col-lg-4">
+      <div class="card bg-slate-900 border border-white-10 rounded-4 p-4 shadow-lg sticky-summary">
+        <h4 class="fw-bold text-white mb-3 pb-2 border-bottom border-white-10">
+          <i class="fa-solid fa-ticket text-danger me-2"></i> Selection Summary
+        </h4>
+
+        <div class="mb-3">
+          <span class="text-secondary small d-block mb-1">Selected Seats:</span>
+          <div id="selectedSeatBadges" class="d-flex flex-wrap gap-1 min-h-2rem">
+            <span class="text-secondary fst-italic small">No seats selected yet</span>
+          </div>
+        </div>
+
+        <div class="d-flex justify-content-between text-secondary small mb-2">
+          <span>Tickets Selected:</span>
+          <strong id="summaryCount" class="text-white">0</strong>
+        </div>
+
+        <div class="d-flex justify-content-between text-secondary small mb-3 pb-2 border-bottom border-white-10">
+          <span>Convenience Fee:</span>
+          <span class="text-white">₹30.00</span>
+        </div>
+
+        <div class="d-flex justify-content-between align-items-center mb-4">
+          <span class="text-white font-semibold">Total Price:</span>
+          <h3 id="summaryTotal" class="text-success fw-bold mb-0">₹0.00</h3>
+        </div>
+
+        <!-- Proceed / Reserve Button -->
+        <button id="payBtn" class="btn btn-danger w-100 py-3 fw-bold rounded-3 shadow-lg" disabled>
+          PROCEED TO PAYMENT <i class="fa-solid fa-credit-card ms-2"></i>
+        </button>
+
+        <p class="text-secondary text-center small mt-3 mb-0">
+          <i class="fa-solid fa-shield-halved text-success me-1"></i> Seats held for 2 minutes upon checkout
+        </p>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- Razorpay Checkout SDK -->
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+
+<script>
+  const SHOW_ID = "{{ show.id }}";
+  let seatsState = [];
+  let selectedSeatIds = new Set();
+  let currentReservationToken = null;
+  let countdownTimer = null;
+  let wsSocket = null;
+  let isReserving = false;
+
+  document.addEventListener('DOMContentLoaded', () => {
+    fetchSeatLayout();
+    initWebSocket();
+  });
+
+  // ----------------------------------------------------
+  // WebSocket Subscription for Real-Time Seat Availability
+  // ----------------------------------------------------
+  function initWebSocket() {
+    const wsScheme = window.location.protocol === 'https:' ? 'wss' : 'ws';
+    const wsUrl = `${wsScheme}://${window.location.host}/ws/shows/${SHOW_ID}/seats/`;
+
+    wsSocket = new WebSocket(wsUrl);
+
+    wsSocket.onopen = () => {
+      document.getElementById('wsStatusDot').className = 'ws-indicator connected';
+      document.getElementById('wsStatusText').textContent = 'Live Seat Updates';
+    };
+
+    wsSocket.onmessage = (e) => {
+      try {
+        const data = JSON.parse(e.data);
+        if (data.type === 'seat_status_changed' && data.seats) {
+          updateSeatsFromWebSocket(data.seats, data.status);
+        }
+      } catch (err) {
+        console.error('WS Message Parse Error:', err);
+      }
+    };
+
+    wsSocket.onclose = () => {
+      document.getElementById('wsStatusDot').className = 'ws-indicator disconnected';
+      document.getElementById('wsStatusText').textContent = 'Reconnecting...';
+      setTimeout(initWebSocket, 4000);
+    };
+  }
+
+  function updateSeatsFromWebSocket(seatLabels, newStatus) {
+    let affected = false;
+
+    seatsState.forEach(s => {
+      if (seatLabels.includes(s.label)) {
+        s.status = newStatus.toLowerCase();
+        affected = true;
+
+        // If a seat selected by user becomes reserved/booked by someone else, deselect it (skip if user is currently reserving)
+        if (!isReserving && (newStatus === 'RESERVED' || newStatus === 'BOOKED')) {
+          if (selectedSeatIds.has(s.show_seat_id) || selectedSeatIds.has(s.seat_id)) {
+            selectedSeatIds.delete(s.show_seat_id);
+            selectedSeatIds.delete(s.seat_id);
+            alert(`Seat ${s.label} is no longer available.`);
+          }
+        }
+      }
+    });
+
+    if (affected) {
+      renderSeatGrid(seatsState);
+    }
+  }
+
+  // ----------------------------------------------------
+  // Seat Layout Fetching & Rendering
+  // ----------------------------------------------------
+  function fetchSeatLayout() {
+    fetch(`/shows/api/${SHOW_ID}/seats/`, {
+      headers: { 'Accept': 'application/json' }
+    })
+    .then(res => res.json())
+    .then(data => {
+      if (data.success) {
+        seatsState = data.seats;
+        renderSeatGrid(data.seats);
+        
+        if (data.reservation && !currentReservationToken) {
+          currentReservationToken = data.reservation.reservation_token;
+          startCountdown(data.reservation.remaining_seconds);
+        }
+      }
+    })
+    .catch(err => console.error('Error loading seat grid:', err));
+  }
+
+  function renderSeatGrid(seats) {
+    const grid = document.getElementById('seatGrid');
+    if (!grid) return;
+
+    // Group seats by Row letter
+    const rows = {};
+    seats.forEach(s => {
+      if (!rows[s.row]) rows[s.row] = [];
+      rows[s.row].push(s);
+    });
+
+    let html = '';
+    const sortedRowLetters = Object.keys(rows).sort();
+
+    // Map rows to categories (BookMyShow Tiered Categories)
+    let currentCategory = '';
+
+    sortedRowLetters.forEach(rLetter => {
+      const sampleSeat = rows[rLetter][0];
+      const tierName = sampleSeat ? sampleSeat.type : 'REGULAR';
+      const tierPrice = sampleSeat ? sampleSeat.price : 180;
+
+      if (tierName !== currentCategory) {
+        currentCategory = tierName;
+        html += `<div class="category-divider">
+          ${currentCategory} — ₹${tierPrice.toFixed(2)}
+        </div>`;
+      }
+
+      html += `<div class="seat-row">
+        <div class="row-label">${rLetter}</div>`;
+      
+      const sortedRowSeats = rows[rLetter].sort((a, b) => a.number - b.number);
+
+      sortedRowSeats.forEach((s, idx) => {
+        let isSel = selectedSeatIds.has(s.show_seat_id) || selectedSeatIds.has(s.seat_id);
+        let statusClass = s.status;
+        let isDisabled = (s.status === 'booked' || (s.status === 'reserved' && !isSel));
+
+        if (isSel) statusClass = 'selected';
+        const numStr = String(s.number).padStart(2, '0');
+
+        html += `<button type="button" 
+          class="seat-btn ${statusClass}" 
+          data-id="${s.show_seat_id}"
+          data-seat-id="${s.seat_id}"
+          data-label="${s.label}"
+          data-price="${s.price}"
+          data-type="${s.type}"
+          title="${s.label} (${s.type}) - ₹${s.price}"
+          ${isDisabled ? 'disabled' : ''}
+          onclick="toggleSeatSelection(this)">
+          ${numStr}
+        </button>`;
+
+        // Aisle Gap after 5th seat
+        if (idx === 4) {
+          html += `<div class="aisle-gap"></div>`;
+        }
+      });
+
+      html += `</div>`;
+    });
+
+    grid.innerHTML = html;
+    updateSummary();
+  }
+
+  function toggleSeatSelection(btn) {
+    const seatId = parseInt(btn.dataset.id) || parseInt(btn.dataset.seatId);
+    
+    if (selectedSeatIds.has(seatId)) {
+      selectedSeatIds.delete(seatId);
+    } else {
+      if (selectedSeatIds.size >= 10) {
+        alert('Maximum 10 seats allowed per booking.');
+        return;
+      }
+      selectedSeatIds.add(seatId);
+    }
+
+    renderSeatGrid(seatsState);
+  }
+
+  function updateSummary() {
+    const badgesContainer = document.getElementById('selectedSeatBadges');
+    const countEl = document.getElementById('summaryCount');
+    const totalEl = document.getElementById('summaryTotal');
+    const payBtn = document.getElementById('payBtn');
+
+    if (selectedSeatIds.size === 0) {
+      badgesContainer.innerHTML = `<span class="text-secondary fst-italic small">No seats selected yet</span>`;
+      countEl.textContent = '0';
+      totalEl.textContent = '₹0.00';
+      payBtn.disabled = true;
+      return;
+    }
+
+    let labels = [];
+    let totalPrice = 0;
+
+    seatsState.forEach(s => {
+      if (selectedSeatIds.has(s.show_seat_id) || selectedSeatIds.has(s.seat_id)) {
+        labels.push(s.label);
+        totalPrice += parseFloat(s.price);
+      }
+    });
+
+    const grandTotal = totalPrice > 0 ? totalPrice + 30.00 : 0;
+
+    badgesContainer.innerHTML = labels.map(lbl => 
+      `<span class="badge bg-danger px-2.5 py-1.5 rounded-2 font-bold fs-6 me-1 mb-1">${lbl}</span>`
+    ).join('');
+
+    countEl.textContent = selectedSeatIds.size;
+    totalEl.textContent = `₹${grandTotal.toFixed(2)}`;
+    payBtn.disabled = false;
+  }
+
+  function getCsrfToken() {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, 10) === 'csrftoken=') {
+                cookieValue = decodeURIComponent(cookie.substring(10));
+                break;
+            }
+        }
+    }
+    return cookieValue || '{{ csrf_token }}';
+  }
+
+  // ----------------------------------------------------
+  // 2-Minute Seat Reservation & Redirect to Payment Checkout
+  // ----------------------------------------------------
+  document.getElementById('payBtn').addEventListener('click', () => {
+    if (selectedSeatIds.size === 0) return;
+
+    const seatIdList = Array.from(selectedSeatIds);
+    isReserving = true;
+    const payBtn = document.getElementById('payBtn');
+    payBtn.disabled = true;
+    payBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-2"></i> RESERVING SEATS...';
+
+    fetch(`/shows/api/${SHOW_ID}/seats/reserve/`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': getCsrfToken()
+      },
+      body: JSON.stringify({ seat_ids: seatIdList })
+    })
+    .then(res => res.json())
+    .then(data => {
+      if (!data.success) {
+        isReserving = false;
+        payBtn.disabled = false;
+        payBtn.innerHTML = 'PROCEED TO PAYMENT <i class="fa-solid fa-credit-card ms-2"></i>';
+        alert(data.message || 'One or more selected seats are no longer available.');
+        selectedSeatIds.clear();
+        fetchSeatLayout();
+        return;
+      }
+
+      currentReservationToken = data.reservation_token;
+
+      // Redirect user directly to the Checkout & Payment overview screen
+      window.location.href = `/payments/checkout/${SHOW_ID}/?seats=${seatIdList.join(',')}`;
+    })
+    .catch(err => {
+      isReserving = false;
+      payBtn.disabled = false;
+      payBtn.innerHTML = 'PROCEED TO PAYMENT <i class="fa-solid fa-credit-card ms-2"></i>';
+      console.error('Reservation error:', err);
+      alert('Network error while reserving seats. Please try again.');
+    });
+  });
+
+  function triggerRazorpayPayment(resToken, totalAmount) {
+    const options = {
+      "key": "rzp_test_cinepass_key",
+      "amount": Math.round(totalAmount * 100),
+      "currency": "INR",
+      "name": "CinePass Cinema",
+      "description": `Movie Tickets for ${selectedSeatIds.size} seat(s)`,
+      "image": "{% static 'images/logo.png' %}",
+      "handler": function (response) {
+        // Server-Side Payment Signature Verification Callback
+        fetch('/bookings/api/payments/verify/', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token }}'
+          },
+          body: JSON.stringify({
+            razorpay_order_id: response.razorpay_order_id || 'order_mock_' + Date.now(),
+            razorpay_payment_id: response.razorpay_payment_id || 'pay_mock_' + Date.now(),
+            razorpay_signature: response.razorpay_signature || 'sig_mock',
+            reservation_token: resToken
+          })
+        })
+        .then(res => res.json())
+        .then(verRes => {
+          if (verRes.success) {
+            window.location.href = verRes.redirect_url || '/accounts/bookings/';
+          } else {
+            alert(verRes.message || 'Payment verification failed.');
+          }
+        })
+        .catch(err => console.error('Verification Error:', err));
+      },
+      "modal": {
+        "ondismiss": function() {
+          console.log('Payment modal dismissed');
+        }
+      },
+      "prefill": {
+        "email": "{{ request.user.email }}"
+      },
+      "theme": {
+        "color": "#EF4444"
+      }
+    };
+
+    try {
+      const rzp1 = new Razorpay(options);
+      rzp1.open();
+    } catch(e) {
+      // Fallback form submit if Razorpay SDK blocked/failed
+      const form = document.createElement('form');
+      form.method = 'POST';
+      form.action = `/bookings/show/${SHOW_ID}/book/`;
+      
+      const csrfInput = document.createElement('input');
+      csrfInput.type = 'hidden';
+      csrfInput.name = 'csrfmiddlewaretoken';
+      csrfInput.value = '{{ csrf_token }}';
+      form.appendChild(csrfInput);
+
+      const seatInput = document.createElement('input');
+      seatInput.type = 'hidden';
+      seatInput.name = 'seats_booked';
+      seatInput.value = selectedSeatIds.size;
+      form.appendChild(seatInput);
+
+      document.body.appendChild(form);
+      form.submit();
+    }
+  }
+
+  function startCountdown(seconds) {
+    const container = document.getElementById('timerContainer');
+    const timerEl = document.getElementById('timerCountdown');
+    container.classList.remove('d-none');
+    container.classList.add('d-flex');
+
+    let rem = seconds;
+    if (countdownTimer) clearInterval(countdownTimer);
+
+    countdownTimer = setInterval(() => {
+      rem--;
+      if (rem <= 0) {
+        clearInterval(countdownTimer);
+        timerEl.textContent = '00:00';
+        alert('Your 2-minute seat reservation has expired. Please select your seats again.');
+        selectedSeatIds.clear();
+        currentReservationToken = null;
+        fetchSeatLayout();
+        container.classList.add('d-none');
+        return;
+      }
+
+      const m = String(Math.floor(rem / 60)).padStart(2, '0');
+      const s = String(rem % 60).padStart(2, '0');
+      timerEl.textContent = `${m}:${s}`;
+    }, 1000);
+  }
+</script>
+{% endblock %}

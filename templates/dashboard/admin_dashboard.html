@@ -1,0 +1,234 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Admin Analytics Dashboard | CinePass{% endblock %}
+
+{% block extra_css %}
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4 px-lg-5">
+    <!-- Dashboard Header -->
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
+        <div>
+            <h2 class="font-outfit text-white fw-bold mb-1">
+                <i class="fa-solid fa-chart-line text-danger me-2"></i>Admin Analytics Dashboard
+            </h2>
+            <p class="text-secondary small mb-0">Real-time revenue, booking trends, occupancy metrics, and platform growth.</p>
+        </div>
+
+        <!-- Filters & Export -->
+        <div class="d-flex flex-wrap align-items-center gap-2">
+            <form method="get" class="d-flex align-items-center gap-2">
+                <select name="period" class="form-select bg-card text-white border-glass" onchange="this.form.submit()">
+                    <option value="today" {% if period == 'today' %}selected{% endif %}>Today</option>
+                    <option value="7days" {% if period == '7days' %}selected{% endif %}>Last 7 Days</option>
+                    <option value="30days" {% if period == '30days' %}selected{% endif %}>Last 30 Days</option>
+                    <option value="this_month" {% if period == 'this_month' %}selected{% endif %}>This Month</option>
+                    <option value="this_year" {% if period == 'this_year' %}selected{% endif %}>This Year</option>
+                </select>
+            </form>
+
+            <a href="{% url 'dashboard:export_csv' %}" class="btn btn-outline-accent">
+                <i class="fa-solid fa-download me-2"></i>Export CSV
+            </a>
+        </div>
+    </div>
+
+    <!-- Metric KPI Cards Grid -->
+    <div class="row g-3 mb-4">
+        <!-- Total Revenue -->
+        <div class="col-xl-3 col-md-6">
+            <div class="card bg-card border-glass p-3 rounded-4 shadow-sm h-100">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <span class="text-secondary small fw-bold text-uppercase">Gross Revenue</span>
+                        <h3 class="text-white font-outfit fw-bold mt-1 mb-0">₹{{ total_revenue|floatformat:2 }}</h3>
+                    </div>
+                    <div class="p-3 bg-danger bg-opacity-10 text-danger rounded-3">
+                        <i class="fa-solid fa-indian-rupee-sign fa-xl"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Confirmed Bookings -->
+        <div class="col-xl-3 col-md-6">
+            <div class="card bg-card border-glass p-3 rounded-4 shadow-sm h-100">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <span class="text-secondary small fw-bold text-uppercase">Confirmed Bookings</span>
+                        <h3 class="text-white font-outfit fw-bold mt-1 mb-0">{{ confirmed_bookings_count }}</h3>
+                        <span class="text-secondary small">Total tickets: {{ total_tickets_sold }}</span>
+                    </div>
+                    <div class="p-3 bg-success bg-opacity-10 text-success rounded-3">
+                        <i class="fa-solid fa-ticket fa-xl"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Payment Success vs Failure -->
+        <div class="col-xl-3 col-md-6">
+            <div class="card bg-card border-glass p-3 rounded-4 shadow-sm h-100">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <span class="text-secondary small fw-bold text-uppercase">Successful Payments</span>
+                        <h3 class="text-white font-outfit fw-bold mt-1 mb-0">{{ successful_payments }}</h3>
+                        <span class="text-danger small"><i class="fa-solid fa-triangle-exclamation me-1"></i>{{ failed_payments }} Failed</span>
+                    </div>
+                    <div class="p-3 bg-warning bg-opacity-10 text-warning rounded-3">
+                        <i class="fa-solid fa-credit-card fa-xl"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Total Users & Growth -->
+        <div class="col-xl-3 col-md-6">
+            <div class="card bg-card border-glass p-3 rounded-4 shadow-sm h-100">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <span class="text-secondary small fw-bold text-uppercase">Platform Users</span>
+                        <h3 class="text-white font-outfit fw-bold mt-1 mb-0">{{ total_users }}</h3>
+                        <span class="text-success small">+{{ recent_users_count }} in period</span>
+                    </div>
+                    <div class="p-3 bg-primary bg-opacity-10 text-primary rounded-3">
+                        <i class="fa-solid fa-users fa-xl"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Row -->
+    <div class="row g-4 mb-4">
+        <div class="col-lg-8">
+            <div class="card bg-card border-glass p-4 rounded-4 shadow-sm h-100">
+                <h5 class="text-white fw-bold font-outfit mb-3">Revenue & Booking Trends</h5>
+                <canvas id="revenueChart" style="max-height: 320px;"></canvas>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card bg-card border-glass p-4 rounded-4 shadow-sm h-100">
+                <h5 class="text-white fw-bold font-outfit mb-3">Peak Booking Hours</h5>
+                {% if peak_hours %}
+                <ul class="list-group list-group-flush bg-transparent">
+                    {% for ph in peak_hours %}
+                    <li class="list-group-item bg-transparent text-white d-flex justify-content-between align-items-center border-glass py-2 px-0">
+                        <span><i class="fa-regular fa-clock me-2 text-warning"></i>{{ ph.hour_str }}</span>
+                        <span class="badge bg-danger rounded-pill">{{ ph.count }} Bookings</span>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <p class="text-secondary small">No peak hour data available for period.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Tables Row: Top Movies & Top Theaters -->
+    <div class="row g-4">
+        <!-- Top Performing Movies -->
+        <div class="col-lg-6">
+            <div class="card bg-card border-glass p-4 rounded-4 shadow-sm h-100">
+                <h5 class="text-white fw-bold font-outfit mb-3"><i class="fa-solid fa-film text-danger me-2"></i>Top Movies by Revenue</h5>
+                <div class="table-responsive">
+                    <table class="table table-dark table-hover align-middle mb-0">
+                        <thead>
+                            <tr class="text-secondary border-glass small">
+                                <th>Movie</th>
+                                <th>Tickets Sold</th>
+                                <th class="text-end">Revenue</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for m in top_movies %}
+                            <tr class="border-glass">
+                                <td class="fw-bold text-white">{{ m.show__movie__title }}</td>
+                                <td>{{ m.tickets }}</td>
+                                <td class="text-end font-monospace text-success fw-bold">₹{{ m.revenue|floatformat:2 }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="3" class="text-secondary text-center">No movie data found.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Top Performing Theaters -->
+        <div class="col-lg-6">
+            <div class="card bg-card border-glass p-4 rounded-4 shadow-sm h-100">
+                <h5 class="text-white fw-bold font-outfit mb-3"><i class="fa-solid fa-building text-warning me-2"></i>Top Performing Theaters</h5>
+                <div class="table-responsive">
+                    <table class="table table-dark table-hover align-middle mb-0">
+                        <thead>
+                            <tr class="text-secondary border-glass small">
+                                <th>Theater</th>
+                                <th>City</th>
+                                <th>Tickets Sold</th>
+                                <th class="text-end">Revenue</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for t in theater_performance %}
+                            <tr class="border-glass">
+                                <td class="fw-bold text-white">{{ t.show__screen__theater__name }}</td>
+                                <td><span class="badge bg-secondary">{{ t.show__screen__theater__city__name }}</span></td>
+                                <td>{{ t.tickets }}</td>
+                                <td class="text-end font-monospace text-success fw-bold">₹{{ t.revenue|floatformat:2 }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="4" class="text-secondary text-center">No theater performance data found.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const ctx = document.getElementById('revenueChart').getContext('2d');
+        const labels = {{ trend_labels|safe }};
+        const revenueData = {{ trend_revenue|safe }};
+
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Gross Revenue (₹)',
+                    data: revenueData,
+                    borderColor: '#e11d48',
+                    backgroundColor: 'rgba(225, 29, 72, 0.15)',
+                    fill: true,
+                    tension: 0.35,
+                    borderWidth: 3
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { labels: { color: '#94a3b8' } }
+                },
+                scales: {
+                    x: { ticks: { color: '#94a3b8' }, grid: { color: 'rgba(255,255,255,0.05)' } },
+                    y: { ticks: { color: '#94a3b8' }, grid: { color: 'rgba(255,255,255,0.05)' } }
+                }
+            }
+        });
+    });
+</script>
+{% endblock %}

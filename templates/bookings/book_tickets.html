@@ -1,0 +1,65 @@
+{% extends 'base.html' %}
+
+{% block title %}Book Tickets for {{ show.movie.title }} - CinePass{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-6">
+            <div class="card bg-dark border-secondary rounded-4 p-4 shadow-lg">
+                <h3 class="text-white fw-bold mb-3">
+                    <i class="fa-solid fa-ticket text-danger me-2"></i> Ticket Reservation
+                </h3>
+
+                <!-- Show Summary Card -->
+                <div class="p-3 bg-body-tertiary rounded-3 border border-secondary mb-4">
+                    <h5 class="text-white fw-bold mb-1">{{ show.movie.title }}</h5>
+                    <p class="text-secondary small mb-2">
+                        <i class="fa-solid fa-building-user text-danger me-1"></i> {{ show.theater.name }} ({{ show.theater.city.name }})
+                    </p>
+                    <div class="d-flex justify-content-between align-items-center small text-light">
+                        <span><i class="fa-regular fa-clock me-1"></i> {{ show.show_time|date:"M d, Y - H:i A" }}</span>
+                        <span>Price per ticket: <strong class="text-success">${{ show.ticket_price }}</strong></span>
+                    </div>
+                </div>
+
+                <form method="POST">
+                    {% csrf_token %}
+                    
+                    <div class="mb-4">
+                        <label class="form-label text-secondary small fw-semibold">Number of Seats (Max 10 per booking)</label>
+                        {{ form.seats_booked }}
+                        <div class="form-text text-secondary">
+                            Available Seats remaining: <span class="text-warning fw-bold">{{ show.available_seats }}</span>
+                        </div>
+                    </div>
+
+                    <div class="p-3 bg-dark border border-secondary rounded-3 mb-4 d-flex justify-content-between align-items-center">
+                        <span class="text-secondary">Estimated Total Amount:</span>
+                        <h4 class="text-success fw-bold mb-0" id="totalPriceCalc">${{ show.ticket_price }}</h4>
+                    </div>
+
+                    <button type="submit" class="btn btn-accent w-100 py-2 fs-6">
+                        Confirm & Pay Ticket <i class="fa-solid fa-credit-card ms-2"></i>
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const ticketPrice = parseFloat("{{ show.ticket_price }}");
+    const seatInput = document.querySelector('input[name="seats_booked"]');
+    const totalCalc = document.getElementById('totalPriceCalc');
+
+    if (seatInput && totalCalc) {
+        seatInput.addEventListener('input', () => {
+            const seats = parseInt(seatInput.value) || 1;
+            totalCalc.textContent = '$' + (ticketPrice * seats).toFixed(2);
+        });
+    }
+</script>
+{% endblock %}

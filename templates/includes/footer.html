@@ -1,0 +1,47 @@
+<footer>
+    <div class="container">
+        <div class="row gy-4">
+            <div class="col-lg-4">
+                <a class="navbar-brand d-flex align-items-center mb-3" href="{% url 'movies:home' %}">
+                    <i class="fa-solid fa-film text-danger me-2 fs-3"></i>
+                    <span>Cine</span>Pass
+                </a>
+                <p class="text-secondary small">
+                    Your premier destination for discovering blockbuster movies, checking live theater showtimes, and booking tickets seamlessly.
+                </p>
+            </div>
+            <div class="col-lg-2 col-6">
+                <h6 class="text-white fw-bold mb-3">Quick Links</h6>
+                <ul class="list-unstyled">
+                    <li><a href="{% url 'movies:home' %}" class="text-secondary text-decoration-none small">Home</a></li>
+                    <li><a href="{% url 'movies:discovery' %}" class="text-secondary text-decoration-none small">Explore Movies</a></li>
+                    <li><a href="{% url 'theaters:list' %}" class="text-secondary text-decoration-none small">Theaters</a></li>
+                </ul>
+            </div>
+            <div class="col-lg-2 col-6">
+                <h6 class="text-white fw-bold mb-3">User Account</h6>
+                <ul class="list-unstyled">
+                    <li><a href="{% url 'accounts:login' %}" class="text-secondary text-decoration-none small">Sign In</a></li>
+                    <li><a href="{% url 'accounts:register' %}" class="text-secondary text-decoration-none small">Register</a></li>
+                    <li><a href="{% url 'accounts:booking_history' %}" class="text-secondary text-decoration-none small">My Tickets</a></li>
+                </ul>
+            </div>
+            <div class="col-lg-4">
+                <h6 class="text-white fw-bold mb-3">Subscribe to Movie Updates</h6>
+                <div class="input-group mb-3">
+                    <input type="email" class="form-control bg-dark border-secondary text-white small" placeholder="Enter your email">
+                    <button class="btn btn-accent text-white" type="button">Subscribe</button>
+                </div>
+            </div>
+        </div>
+        <hr class="border-secondary my-4">
+        <div class="d-flex flex-column flex-sm-row justify-content-between align-items-center small text-secondary">
+            <p class="mb-0">&copy; 2026 CinePass Movie Discovery System. Powered by Django 5.x & Bootstrap 5.</p>
+            <div>
+                <a href="#" class="text-secondary me-3"><i class="fa-brands fa-facebook"></i></a>
+                <a href="#" class="text-secondary me-3"><i class="fa-brands fa-twitter"></i></a>
+                <a href="#" class="text-secondary me-3"><i class="fa-brands fa-instagram"></i></a>
+            </div>
+        </div>
+    </div>
+</footer>

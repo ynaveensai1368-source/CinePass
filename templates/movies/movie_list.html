@@ -1,0 +1,84 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Explore & Discover Movies - CinePass{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+
+    <!-- Page Header & Count -->
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 pb-3 border-bottom border-secondary border-opacity-25">
+        <div>
+            <h2 class="fw-bold mb-1">
+                <i class="fa-solid fa-compass text-danger me-2"></i> Discover Movies
+            </h2>
+            <p class="text-secondary mb-0">Browse active movies, apply multi-filters, and book tickets</p>
+        </div>
+
+        <div class="d-flex align-items-center gap-3 mt-3 mt-md-0">
+            <!-- Mobile Offcanvas Filter Trigger Button -->
+            <button class="btn btn-outline-accent d-lg-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#offcanvasFilters" aria-controls="offcanvasFilters">
+                <i class="fa-solid fa-sliders me-1"></i> Filter Movies
+            </button>
+
+            <!-- Dynamic Movie Count -->
+            <span class="badge bg-danger fs-6 px-3 py-2 rounded-pill shadow-sm">
+                <i class="fa-solid fa-clapperboard me-1"></i> {{ movie_count }} Movie{{ movie_count|pluralize }} Found
+            </span>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <!-- Desktop Sidebar Filters Column (Hidden on <992px) -->
+        <div class="col-lg-3 d-none d-lg-block">
+            <div class="filter-card shadow-sm sticky-top" style="top: 85px;">
+                {% include 'movies/includes/filter_form.html' %}
+            </div>
+        </div>
+
+        <!-- Mobile Offcanvas Drawer (Visible on <992px) -->
+        <div class="offcanvas offcanvas-start d-lg-none" tabindex="-1" id="offcanvasFilters" aria-labelledby="offcanvasFiltersLabel">
+            <div class="offcanvas-header border-bottom border-secondary">
+                <h5 class="offcanvas-title fw-bold" id="offcanvasFiltersLabel">
+                    <i class="fa-solid fa-sliders text-danger me-2"></i> Filter Movies
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+            </div>
+            <div class="offcanvas-body">
+                {% include 'movies/includes/filter_form.html' %}
+            </div>
+        </div>
+
+        <!-- Movies Grid Column -->
+        <div class="col-lg-9">
+            <!-- Active Search Notification -->
+            {% if current_search %}
+                <div class="alert alert-body border-secondary d-flex justify-content-between align-items-center mb-3 shadow-sm">
+                    <span>Searching for: <strong>"{{ current_search }}"</strong></span>
+                    <a href="{% url 'movies:discovery' %}" class="btn btn-sm btn-outline-secondary">Clear Search</a>
+                </div>
+            {% endif %}
+
+            <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-xl-4 g-3">
+                {% for movie in movies %}
+                    <div class="col">
+                        {% include 'includes/movie_card.html' with movie=movie %}
+                    </div>
+                {% empty %}
+                    <div class="col-12 text-center py-5">
+                        <div class="p-5 border border-secondary border-opacity-25 rounded-4 bg-body-tertiary shadow-sm">
+                            <i class="fa-solid fa-film text-secondary display-1 mb-3"></i>
+                            <h4 class="fw-bold">No Movies Found</h4>
+                            <p class="text-secondary">Try adjusting your filters or search keywords to find matching releases.</p>
+                            <a href="{% url 'movies:discovery' %}" class="btn btn-accent mt-2">Reset All Filters</a>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+
+            <!-- Pagination preserving active search & filters -->
+            {% include 'includes/pagination.html' %}
+        </div>
+    </div>
+</div>
+{% endblock %}

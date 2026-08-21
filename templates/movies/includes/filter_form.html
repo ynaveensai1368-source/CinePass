@@ -1,0 +1,117 @@
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h5 class="fw-bold mb-0">
+        <i class="fa-solid fa-sliders text-danger me-2"></i> Filters
+    </h5>
+    <a href="{% url 'movies:discovery' %}" class="btn btn-link text-secondary btn-sm text-decoration-none px-0">Reset</a>
+</div>
+
+<form method="GET" action="{% url 'movies:discovery' %}" id="filterForm">
+    {% if current_search %}
+        <input type="hidden" name="q" value="{{ current_search }}">
+    {% endif %}
+
+    <!-- TMDb Category Filter -->
+    <div class="mb-3">
+        <label class="form-label text-secondary small fw-semibold">TMDb Collection</label>
+        <select name="category" class="form-select form-select-sm auto-filter">
+            <option value="">All Collections</option>
+            <option value="now_playing" {% if current_category == 'now_playing' %}selected{% endif %}>Now Playing</option>
+            <option value="popular" {% if current_category == 'popular' %}selected{% endif %}>Popular</option>
+            <option value="top_rated" {% if current_category == 'top_rated' %}selected{% endif %}>Top Rated</option>
+            <option value="upcoming" {% if current_category == 'upcoming' %}selected{% endif %}>Upcoming</option>
+        </select>
+    </div>
+
+    <!-- Sorting Choice -->
+    <div class="mb-3">
+        <label class="form-label text-secondary small fw-semibold">Sort By</label>
+        <select name="sort" class="form-select form-select-sm auto-filter">
+            <option value="popularity" {% if current_sort == 'popularity' %}selected{% endif %}>Popularity</option>
+            <option value="newest" {% if current_sort == 'newest' %}selected{% endif %}>Newest Release</option>
+            <option value="rating" {% if current_sort == 'rating' %}selected{% endif %}>Highest Rating</option>
+            <option value="price_low" {% if current_sort == 'price_low' %}selected{% endif %}>Lowest Ticket Price</option>
+            <option value="price_high" {% if current_sort == 'price_high' %}selected{% endif %}>Highest Ticket Price</option>
+        </select>
+    </div>
+
+    <!-- Genre Filter -->
+    <div class="mb-3">
+        <label class="form-label text-secondary small fw-semibold">Genre</label>
+        <select name="genre" class="form-select form-select-sm auto-filter">
+            <option value="">All Genres</option>
+            {% for g in genres %}
+                <option value="{{ g.id }}" {% if current_genre == g.id|slugify %}selected{% endif %}>{{ g.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <!-- Language Filter -->
+    <div class="mb-3">
+        <label class="form-label text-secondary small fw-semibold">Language</label>
+        <select name="language" class="form-select form-select-sm auto-filter">
+            <option value="">All Languages</option>
+            {% for l in languages %}
+                <option value="{{ l.id }}" {% if current_language == l.id|slugify %}selected{% endif %}>{{ l.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <!-- City Filter -->
+    <div class="mb-3">
+        <label class="form-label text-secondary small fw-semibold">City</label>
+        <select name="city" class="form-select form-select-sm auto-filter">
+            <option value="">All Cities</option>
+            {% for c in cities %}
+                <option value="{{ c.id }}" {% if current_city == c.id|slugify %}selected{% endif %}>{{ c.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <!-- Theater Filter -->
+    <div class="mb-3">
+        <label class="form-label text-secondary small fw-semibold">Theater</label>
+        <select name="theater" class="form-select form-select-sm auto-filter">
+            <option value="">All Theaters</option>
+            {% for t in theaters %}
+                <option value="{{ t.id }}" {% if current_theater == t.id|slugify %}selected{% endif %}>{{ t.name }} ({{ t.city.name }})</option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <!-- Minimum Rating Filter -->
+    <div class="mb-3">
+        <label class="form-label text-secondary small fw-semibold">Minimum Rating</label>
+        <select name="rating" class="form-select form-select-sm auto-filter">
+            <option value="">Any Rating</option>
+            <option value="9.0" {% if current_rating == '9.0' %}selected{% endif %}>9.0+ ⭐</option>
+            <option value="8.0" {% if current_rating == '8.0' %}selected{% endif %}>8.0+ ⭐</option>
+            <option value="7.0" {% if current_rating == '7.0' %}selected{% endif %}>7.0+ ⭐</option>
+        </select>
+    </div>
+
+    <!-- Release Date Filter -->
+    <div class="mb-3">
+        <label class="form-label text-secondary small fw-semibold">Release Date</label>
+        <select name="release_date" class="form-select form-select-sm auto-filter">
+            <option value="">All Releases</option>
+            <option value="recent" {% if current_release == 'recent' %}selected{% endif %}>Now Showing</option>
+            <option value="upcoming" {% if current_release == 'upcoming' %}selected{% endif %}>Upcoming Releases</option>
+        </select>
+    </div>
+
+    <!-- Show Timing Filter -->
+    <div class="mb-3">
+        <label class="form-label text-secondary small fw-semibold">Show Timing</label>
+        <select name="show_time" class="form-select form-select-sm auto-filter">
+            <option value="">Any Time Slot</option>
+            <option value="morning" {% if current_show_time == 'morning' %}selected{% endif %}>Morning (06:00 AM - 12:00 PM)</option>
+            <option value="afternoon" {% if current_show_time == 'afternoon' %}selected{% endif %}>Afternoon (12:00 PM - 04:00 PM)</option>
+            <option value="evening" {% if current_show_time == 'evening' %}selected{% endif %}>Evening (04:00 PM - 08:00 PM)</option>
+            <option value="night" {% if current_show_time == 'night' %}selected{% endif %}>Night (08:00 PM - 12:00 AM)</option>
+        </select>
+    </div>
+
+    <button type="submit" class="btn btn-accent w-100 btn-sm">
+        <i class="fa-solid fa-filter me-1"></i> Apply Filters
+    </button>
+</form>

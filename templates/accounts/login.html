@@ -1,0 +1,47 @@
+{% extends 'base.html' %}
+
+{% block title %}Sign In - CinePass Movie Discovery{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6 col-lg-5">
+            <div class="card bg-dark border-secondary rounded-4 p-4 shadow-lg">
+                <div class="text-center mb-4">
+                    <i class="fa-solid fa-circle-user text-danger display-4 mb-2"></i>
+                    <h3 class="text-white fw-bold">Sign In to CinePass</h3>
+                    <p class="text-secondary small">Access your ticket bookings & personalized recommendations</p>
+                </div>
+
+                <form method="POST">
+                    {% csrf_token %}
+                    
+                    {% if form.non_field_errors %}
+                        <div class="alert alert-danger py-2 small">
+                            {{ form.non_field_errors }}
+                        </div>
+                    {% endif %}
+
+                    <div class="mb-3">
+                        <label class="form-label text-secondary small fw-semibold">Email or Username</label>
+                        {{ form.username }}
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label text-secondary small fw-semibold">Password</label>
+                        {{ form.password }}
+                    </div>
+
+                    <button type="submit" class="btn btn-accent w-100 py-2">
+                        Sign In <i class="fa-solid fa-right-to-bracket ms-1"></i>
+                    </button>
+                </form>
+
+                <div class="text-center mt-4 pt-3 border-top border-secondary border-opacity-25 small text-secondary">
+                    Don't have an account? <a href="{% url 'accounts:register' %}" class="text-danger fw-semibold text-decoration-none">Register Here</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
