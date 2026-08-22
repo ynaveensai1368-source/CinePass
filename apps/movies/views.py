@@ -451,24 +451,20 @@ class MovieSuggestionsAPIView(View):
         from django.http import JsonResponse
         from django.urls import reverse
 
+        ensure_movies_seeded()
+
+        # Guarantee all movies have a valid language assigned
+        from .models import Language
+        def_lang = Language.objects.filter(code='en').first() or Language.objects.first()
+        if def_lang:
+            Movie.objects.filter(language__isnull=True).update(language=def_lang)
+
         if request.GET.get('debug') == '1':
-            err = None
-            seed_res = None
-            try:
-                from .catalog import seed_production_catalog
-                seed_res = seed_production_catalog()
-            except Exception as e:
-                import traceback
-                err = traceback.format_exc()
-            all_m = list(Movie.objects.all().values('id', 'title', 'is_active', 'poster_url', 'category'))
+            all_m = list(Movie.objects.all().values('id', 'title', 'is_active', 'poster_url', 'language_id', 'language__name'))
             return JsonResponse({
                 'all_movies_count': Movie.objects.count(),
                 'movies': all_m,
-                'seed_result': seed_res,
-                'seed_error': err,
             })
-
-        ensure_movies_seeded()
 
         query = request.GET.get('q', '').strip()
         try:
