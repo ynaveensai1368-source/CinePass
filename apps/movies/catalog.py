@@ -23,7 +23,9 @@ def seed_production_catalog():
 
     # 1. Superuser and Demo User
     try:
-        admin_user = User.objects.filter(email='admin@cinepass.com').first() or User.objects.filter(username='admin').first()
+        admin_user = User.objects.filter(email='admin@cinepass.com').first()
+        if not admin_user:
+            admin_user = User.objects.filter(username='admin').first()
         if not admin_user:
             admin_user = User.objects.create(
                 username='admin',
@@ -34,16 +36,19 @@ def seed_production_catalog():
                 is_staff=True,
                 is_superuser=True,
             )
-        admin_user.is_staff = True
-        admin_user.is_superuser = True
-        admin_user.role = 'SITE_ADMIN'
+        else:
+            admin_user.is_staff = True
+            admin_user.is_superuser = True
+            admin_user.role = 'SITE_ADMIN'
         admin_user.set_password('Admin@123')
         admin_user.save()
     except Exception as e:
         logger.warning(f"Admin user seeding notice: {e}")
 
     try:
-        demo_user = User.objects.filter(email='user@cinepass.com').first() or User.objects.filter(username='demouser').first()
+        demo_user = User.objects.filter(email='user@cinepass.com').first()
+        if not demo_user:
+            demo_user = User.objects.filter(username='demouser').first()
         if not demo_user:
             demo_user = User.objects.create(
                 username='demouser',

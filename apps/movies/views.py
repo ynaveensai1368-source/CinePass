@@ -19,24 +19,46 @@ from .recommendations import get_personalized_recommendations
 logger = logging.getLogger(__name__)
 
 
-_seeding_in_progress = False
+import threading
+
+_seeding_lock = threading.Lock()
+_seeded = False
 
 
 def ensure_movies_seeded():
-    """Defensive helper ensuring database has latest 2026/2025 movie catalog populated."""
-    global _seeding_in_progress
-    if _seeding_in_progress:
+    """Defensive non-blocking helper ensuring database has latest 2026/2025 movie catalog populated."""
+    global _seeded
+    if _seeded:
+        return
+    if not _seeding_lock.acquire(blocking=False):
         return
     try:
-        if not Movie.objects.filter(title='Spider-Man: Brand New Day').exists():
-            _seeding_in_progress = True
-            from .catalog import seed_production_catalog
-            logger.info("Outdated movie catalog detected. Seeding latest 2026/2025 movie catalog...")
-            seed_production_catalog()
+        if Movie.objects.filter(title='Spider-Man: Brand New Day').exists() or Movie.objects.count() >= 10:
+            _seeded = True
+            _seeding_lock.release()
+            return
+
+        from .catalog import seed_production_catalog
+        def _run_seed():
+            try:
+                logger.info("Initializing CinePass production movie catalog...")
+                seed_production_catalog()
+            except Exception as e:
+                logger.warning(f"Catalog seeding notice: {e}")
+            finally:
+                try:
+                    _seeding_lock.release()
+                except RuntimeError:
+                    pass
+
+        threading.Thread(target=_run_seed, daemon=True).start()
+        _seeded = True
     except Exception as e:
         logger.warning(f"Auto-seeding check notice: {e}")
-    finally:
-        _seeding_in_progress = False
+        try:
+            _seeding_lock.release()
+        except RuntimeError:
+            pass
 
 
 class StaffRequiredMixin(UserPassesTestMixin):
