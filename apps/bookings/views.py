@@ -148,17 +148,11 @@ def book_show(request, show_id):
     except Exception as rz_err:
         logger.warning(f"Razorpay order generation skipped/failed safely: {rz_err}")
 
-    # 3. Email Dispatch (Celery async or direct background thread fallback)
-    from .tasks import send_booking_email
-    def _dispatch_email_bg():
-        try:
-            send_booking_email_task.apply_async(args=[booking.id], expires=60, retry=False)
-        except Exception as celery_err:
-            logger.warning(f"Celery task trigger skipped, using sync fallback: {celery_err}")
-            send_booking_email(booking.id)
-
+    # 3. Email Dispatch (Threaded background dispatch on transaction commit)
     import threading
-    threading.Thread(target=_dispatch_email_bg, daemon=True).start()
+    from .tasks import send_booking_email
+    booking_id_val = booking.id
+    transaction.on_commit(lambda: threading.Thread(target=send_booking_email, args=(booking_id_val,), daemon=True).start())
 
     # 4. Guaranteed Early Return Path
     success_msg = f"🎉 Booking #{booking.booking_number} Confirmed! We sent your e-ticket to {request.user.email}."

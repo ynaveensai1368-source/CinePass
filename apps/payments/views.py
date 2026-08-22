@@ -267,17 +267,18 @@ class VerifyPaymentAPIView(LoginRequiredMixin, View):
             show.available_seats = max(0, show.available_seats - len(booking_seats))
             show.save(update_fields=['available_seats'])
 
-        # Dispatch email asynchronously in background thread to guarantee immediate delivery on any environment
-        import threading
-        from bookings.tasks import send_booking_email
+            # Dispatch email asynchronously after transaction commits to guarantee clean data read and immediate delivery
+            import threading
+            from bookings.tasks import send_booking_email
 
-        def _dispatch_ticket_email():
-            try:
-                send_booking_email(booking.id)
-            except Exception as bg_err:
-                logger.error(f"Background thread ticket email error for Booking #{booking.id}: {bg_err}")
+            def _dispatch_ticket_email(b_id):
+                try:
+                    send_booking_email(b_id)
+                except Exception as bg_err:
+                    logger.error(f"Background thread ticket email error for Booking #{b_id}: {bg_err}")
 
-        threading.Thread(target=_dispatch_ticket_email, daemon=True).start()
+            booking_id_val = booking.id
+            transaction.on_commit(lambda: threading.Thread(target=_dispatch_ticket_email, args=(booking_id_val,), daemon=True).start())
 
         return JsonResponse({
             'success': True,
