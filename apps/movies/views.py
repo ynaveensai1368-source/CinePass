@@ -23,9 +23,9 @@ def ensure_movies_seeded():
     """Defensive helper ensuring database has movie catalog populated on any deployment environment."""
     try:
         if Movie.objects.filter(is_active=True).exclude(poster_url__isnull=True).exclude(poster_url='').count() < 5:
-            from django.core.management import call_command
-            logger.info("Empty or outdated movie catalog detected. Auto-seeding production movie catalog...")
-            call_command('seed_data')
+            from .catalog import seed_production_catalog
+            logger.info("Empty or outdated movie catalog detected. Seeding production movie catalog...")
+            seed_production_catalog()
     except Exception as e:
         logger.warning(f"Auto-seeding check warning: {e}")
 
