@@ -19,36 +19,53 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS("Starting CinePass production-ready database seeding..."))
 
         # 1. Create Superuser & Demo User
-        admin_user, created = User.objects.get_or_create(
-            username='admin',
-            email='admin@cinepass.com',
-            defaults={
-                'first_name': 'Admin',
-                'last_name': 'System',
-                'role': 'SITE_ADMIN',
-                'is_staff': True,
-                'is_superuser': True,
-            }
-        )
-        if created:
-            admin_user.set_password('Admin@123')
-            admin_user.save()
-            self.stdout.write(self.style.SUCCESS("Created Superuser: admin@cinepass.com / Admin@123"))
+        try:
+            admin_user = User.objects.filter(email='admin@cinepass.com').first()
+            if not admin_user:
+                admin_user = User.objects.filter(username='admin').first()
+            if not admin_user:
+                admin_user = User.objects.create(
+                    username='admin',
+                    email='admin@cinepass.com',
+                    first_name='Admin',
+                    last_name='System',
+                    role='SITE_ADMIN',
+                    is_staff=True,
+                    is_superuser=True,
+                )
+                admin_user.set_password('Admin@123')
+                admin_user.save()
+                self.stdout.write(self.style.SUCCESS("Created Superuser: admin@cinepass.com / Admin@123"))
+            else:
+                admin_user.is_staff = True
+                admin_user.is_superuser = True
+                admin_user.role = 'SITE_ADMIN'
+                admin_user.set_password('Admin@123')
+                admin_user.save()
+        except Exception as e:
+            self.stdout.write(self.style.WARNING(f"Superuser creation notice: {e}"))
 
-        demo_user, created = User.objects.get_or_create(
-            username='demouser',
-            email='user@cinepass.com',
-            defaults={
-                'first_name': 'Alex',
-                'last_name': 'Morgan',
-                'role': 'CUSTOMER',
-                'is_staff': False,
-            }
-        )
-        if created:
-            demo_user.set_password('User@123')
-            demo_user.save()
-            self.stdout.write(self.style.SUCCESS("Created Demo User: user@cinepass.com / User@123"))
+        try:
+            demo_user = User.objects.filter(email='user@cinepass.com').first()
+            if not demo_user:
+                demo_user = User.objects.filter(username='demouser').first()
+            if not demo_user:
+                demo_user = User.objects.create(
+                    username='demouser',
+                    email='user@cinepass.com',
+                    first_name='Alex',
+                    last_name='Morgan',
+                    role='CUSTOMER',
+                    is_staff=False,
+                )
+                demo_user.set_password('User@123')
+                demo_user.save()
+                self.stdout.write(self.style.SUCCESS("Created Demo User: user@cinepass.com / User@123"))
+            else:
+                demo_user.set_password('User@123')
+                demo_user.save()
+        except Exception as e:
+            self.stdout.write(self.style.WARNING(f"Demo user creation notice: {e}"))
 
         # 2. Seed Languages
         langs_data = [
@@ -422,18 +439,30 @@ class Command(BaseCommand):
 
         created_movies = []
         for mdata in movies_data:
-            genres = mdata.pop('genres')
-            tmdb_id = mdata.pop('tmdb_id', None)
-            movie_obj, m_created = Movie.objects.update_or_create(
-                title=mdata['title'],
-                defaults={
-                    **mdata,
-                    'tmdb_id': tmdb_id,
-                    'is_active': True,
-                }
-            )
-            movie_obj.genres.set(genres)
-            created_movies.append(movie_obj)
+            try:
+                genres = mdata.pop('genres')
+                tmdb_id = mdata.pop('tmdb_id', None)
+                movie_obj = Movie.objects.filter(title=mdata['title']).first()
+                if not movie_obj and tmdb_id:
+                    movie_obj = Movie.objects.filter(tmdb_id=tmdb_id).first()
+                
+                if movie_obj:
+                    for k, v in mdata.items():
+                        setattr(movie_obj, k, v)
+                    if tmdb_id:
+                        movie_obj.tmdb_id = tmdb_id
+                    movie_obj.is_active = True
+                    movie_obj.save()
+                else:
+                    movie_obj = Movie.objects.create(
+                        tmdb_id=tmdb_id,
+                        is_active=True,
+                        **mdata
+                    )
+                movie_obj.genres.set(genres)
+                created_movies.append(movie_obj)
+            except Exception as e:
+                self.stdout.write(self.style.WARNING(f"Movie seed notice for {mdata.get('title')}: {e}"))
 
         # 6. Seed Active Shows across screens with unique showtimes
         now = timezone.now().replace(minute=0, second=0, microsecond=0)
@@ -441,27 +470,30 @@ class Command(BaseCommand):
         prices = [Decimal('220.00'), Decimal('250.00'), Decimal('300.00'), Decimal('350.00')]
 
         for m_idx, movie in enumerate(created_movies):
-            # Select 2-3 different screens for each movie
             for scr_offset in range(3):
+                if not all_screens:
+                    break
                 screen = all_screens[(m_idx * 3 + scr_offset) % len(all_screens)]
-                # Schedule shows for Today (+2h, +5h, +8h), Tomorrow (+26h, +30h), and Day After (+50h, +54h)
                 for h_offset in [2, 5, 8, 26, 30, 50, 54]:
                     stime = now + datetime.timedelta(hours=h_offset + (m_idx % 2))
                     etime = stime + datetime.timedelta(minutes=movie.duration + 20)
                     price = prices[(m_idx + scr_offset) % len(prices)]
-                    _, created = Show.objects.get_or_create(
-                        screen=screen,
-                        start_time=stime,
-                        defaults={
-                            'movie': movie,
-                            'end_time': etime,
-                            'base_price': price,
-                            'available_seats': screen.total_seats,
-                            'status': 'OPEN'
-                        }
-                    )
-                    if created:
-                        shows_count += 1
+                    try:
+                        show_obj, created = Show.objects.get_or_create(
+                            screen=screen,
+                            start_time=stime,
+                            defaults={
+                                'movie': movie,
+                                'end_time': etime,
+                                'base_price': price,
+                                'available_seats': screen.total_seats,
+                                'status': 'OPEN'
+                            }
+                        )
+                        if created:
+                            shows_count += 1
+                    except Exception:
+                        pass
 
         self.stdout.write(self.style.SUCCESS(
             f"Successfully seeded CinePass database! Created {len(created_movies)} Movies, {len(all_screens)} Screens with {total_seats_created} Seats, and {shows_count} Active Shows."
