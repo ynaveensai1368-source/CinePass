@@ -6,6 +6,8 @@ from .views import (
     ProfileView,
     BookingHistoryView,
     PaymentHistoryView,
+    GoogleLoginRedirectView,
+    GoogleLoginCallbackView,
 )
 
 app_name = 'accounts'
@@ -17,4 +19,7 @@ urlpatterns = [
     path('profile/', ProfileView.as_view(), name='profile'),
     path('bookings/', BookingHistoryView.as_view(), name='booking_history'),
     path('payments/', PaymentHistoryView.as_view(), name='payment_history'),
+    path('google/login/', GoogleLoginRedirectView.as_view(), name='google_login'),
+    path('google/callback/', GoogleLoginCallbackView.as_view(), name='google_callback'),
 ]
+

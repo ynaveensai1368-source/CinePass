@@ -210,6 +210,11 @@ EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', 'qqlnguwcodkiuhju')
 DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'CinePass <ynaveensai1368@gmail.com>')
 EMAIL_TIMEOUT = 10
 
+# Google OAuth 2.0 Configuration
+GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID', '684928194012-cinepass-demo.apps.googleusercontent.com')
+GOOGLE_CLIENT_SECRET = os.getenv('GOOGLE_CLIENT_SECRET', '')
+
+
 # CORS & CSRF Trusted Origins
 _cors_env = os.getenv('CORS_ALLOWED_ORIGINS', 'http://localhost:3000,http://127.0.0.1:8000,https://cinepass-r9o8.onrender.com')
 CORS_ALLOWED_ORIGINS = [origin.strip() for origin in _cors_env.split(',') if origin.strip()]
