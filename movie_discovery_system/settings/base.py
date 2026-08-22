@@ -203,6 +203,7 @@ AUTHENTICATION_BACKENDS = [
 # Email Configuration (Resilient Multi-Strategy: HTTPS REST APIs + IPv4 SMTP + Fallback)
 EMAIL_BACKEND = os.getenv('EMAIL_BACKEND', 'apps.bookings.resilient_smtp.ResilientEmailBackend')
 RESEND_API_KEY = os.getenv('RESEND_API_KEY', '')
+RESEND_FROM_EMAIL = os.getenv('RESEND_FROM_EMAIL', '')
 BREVO_API_KEY = os.getenv('BREVO_API_KEY', os.getenv('SENDINBLUE_API_KEY', ''))
 SENDGRID_API_KEY = os.getenv('SENDGRID_API_KEY', '')
 EMAIL_HOST = os.getenv('EMAIL_HOST', 'smtp.gmail.com')

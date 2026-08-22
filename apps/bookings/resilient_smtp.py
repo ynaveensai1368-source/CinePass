@@ -103,14 +103,23 @@ class ResilientEmailBackend(EmailBackend):
 
     def _send_via_resend(self, email_messages, api_key):
         """Sends email messages using the Resend HTTPS REST API."""
+        import os
         sent_count = 0
         headers = {
             'Authorization': f'Bearer {api_key}',
             'Content-Type': 'application/json',
         }
+        resend_from = getattr(settings, 'RESEND_FROM_EMAIL', '') or os.getenv('RESEND_FROM_EMAIL', '')
         for message in email_messages:
             try:
-                from_email = message.from_email or getattr(settings, 'DEFAULT_FROM_EMAIL', 'CinePass <onboarding@resend.dev>')
+                from_email = resend_from
+                if not from_email:
+                    default_from = message.from_email or getattr(settings, 'DEFAULT_FROM_EMAIL', '')
+                    if '@gmail.com' in default_from or not default_from:
+                        from_email = 'CinePass <onboarding@resend.dev>'
+                    else:
+                        from_email = default_from
+
                 payload = {
                     'from': from_email,
                     'to': list(message.to),
