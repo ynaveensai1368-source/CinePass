@@ -80,12 +80,17 @@ def seed_production_catalog():
     lang_objs = {}
     for name, code in langs_data:
         try:
-            obj, _ = Language.objects.get_or_create(code=code, defaults={'name': name})
+            obj = Language.objects.filter(code=code).first() or Language.objects.filter(name=name).first()
+            if not obj:
+                obj = Language.objects.create(name=name, code=code)
             lang_objs[code] = obj
-        except Exception:
-            obj = Language.objects.filter(code=code).first()
-            if obj:
-                lang_objs[code] = obj
+        except Exception as e:
+            logger.warning(f"Language seeding notice for {code}: {e}")
+
+    default_lang = lang_objs.get('en') or Language.objects.first()
+    if not default_lang:
+        default_lang = Language.objects.create(name='English', code='en')
+        lang_objs['en'] = default_lang
 
     # 3. Genres
     genres_list = [
@@ -95,12 +100,13 @@ def seed_production_catalog():
     genre_objs = {}
     for gname in genres_list:
         try:
-            obj, _ = Genre.objects.get_or_create(name=gname)
-            genre_objs[gname] = obj
-        except Exception:
             obj = Genre.objects.filter(name=gname).first()
-            if obj:
-                genre_objs[gname] = obj
+            if not obj:
+                from django.utils.text import slugify
+                obj = Genre.objects.create(name=gname, slug=slugify(gname))
+            genre_objs[gname] = obj
+        except Exception as e:
+            logger.warning(f"Genre seeding notice for {gname}: {e}")
 
     # 4. Cities, Theaters, Screens & Full Seat Layouts
     cities_data = [
@@ -469,6 +475,9 @@ def seed_production_catalog():
         try:
             genres = mdata.pop('genres', [])
             tmdb_id = mdata.pop('tmdb_id', None)
+            if not mdata.get('language'):
+                mdata['language'] = default_lang
+
             movie_obj = Movie.objects.filter(title=mdata['title']).first()
             if not movie_obj and tmdb_id:
                 movie_obj = Movie.objects.filter(tmdb_id=tmdb_id).first()
