@@ -87,16 +87,152 @@
             });
         });
 
-        // Global Broken Image Handler
-        const images = document.querySelectorAll('img');
-        images.forEach(img => {
-            img.addEventListener('error', function () {
-                if (!this.dataset.fallbackApplied) {
-                    this.dataset.fallbackApplied = "true";
-                    this.src = '/static/images/fallback_poster.png';
+        // Global Broken Image Handler (works for static and dynamically loaded images)
+        const handleImageError = (img) => {
+            if (!img.dataset.fallbackApplied) {
+                img.dataset.fallbackApplied = "true";
+                img.src = '/static/images/fallback_poster.png';
+            }
+        };
+
+        document.querySelectorAll('img').forEach(img => {
+            img.addEventListener('error', () => handleImageError(img));
+        });
+
+        // Live Movie Search Suggestions & Autocomplete Engine
+        const initSearchSuggestions = () => {
+            const searchInput = document.getElementById('movieSearchInput');
+            const dropdown = document.getElementById('searchSuggestionsDropdown');
+            const list = document.getElementById('suggestionsList');
+            const viewAllLink = document.getElementById('viewAllSearchLink');
+
+            if (!searchInput || !dropdown || !list) return;
+
+            let debounceTimer = null;
+            let currentFocusIndex = -1;
+
+            const renderSuggestions = (items, query) => {
+                list.innerHTML = '';
+                currentFocusIndex = -1;
+
+                if (viewAllLink) {
+                    viewAllLink.href = query ? `/discover/?q=${encodeURIComponent(query)}` : '/discover/';
+                }
+
+                if (!items || items.length === 0) {
+                    list.innerHTML = `
+                        <div class="p-3 text-center text-secondary">
+                            <i class="fa-solid fa-film mb-2 fs-4 text-secondary opacity-50"></i>
+                            <div class="small">No matching movies found</div>
+                            <div class="text-white-50 small mt-1">Try another title, genre, or keyword</div>
+                        </div>
+                    `;
+                    dropdown.classList.remove('d-none');
+                    return;
+                }
+
+                items.forEach((movie, idx) => {
+                    const itemLink = document.createElement('a');
+                    itemLink.className = 'suggestion-item';
+                    itemLink.href = movie.url;
+                    itemLink.setAttribute('data-index', idx);
+
+                    const genresHtml = (movie.genres || []).map(g => `<span class="badge bg-secondary bg-opacity-25 text-white-50 small me-1">${g}</span>`).join('');
+                    const ratingHtml = movie.rating > 0
+                        ? `<span class="suggestion-rating"><i class="fa-solid fa-star me-1"></i>${movie.rating}</span>`
+                        : '';
+                    const bookingBadge = movie.has_active_shows
+                        ? `<span class="badge bg-danger-subtle text-danger border border-danger-subtle ms-auto small"><i class="fa-solid fa-ticket me-1"></i>Book</span>`
+                        : `<span class="badge bg-secondary-subtle text-secondary ms-auto small">Details</span>`;
+
+                    itemLink.innerHTML = `
+                        <img src="${movie.poster_url}" alt="${movie.title}" class="suggestion-poster" onerror="this.onerror=null; this.src='/static/images/fallback_poster.png';">
+                        <div class="flex-grow-1 min-w-0">
+                            <div class="suggestion-title text-truncate">${movie.title}</div>
+                            <div class="suggestion-meta">
+                                ${ratingHtml}
+                                ${movie.release_year ? `<span>${movie.release_year}</span>` : ''}
+                                ${movie.language ? `<span>${movie.language}</span>` : ''}
+                                <span>${genresHtml}</span>
+                            </div>
+                        </div>
+                        ${bookingBadge}
+                    `;
+                    list.appendChild(itemLink);
+                });
+
+                dropdown.classList.remove('d-none');
+            };
+
+            const fetchSuggestions = async (query) => {
+                try {
+                    const res = await fetch(`/api/movies/suggestions/?q=${encodeURIComponent(query)}&limit=6`);
+                    if (!res.ok) return;
+                    const data = await res.json();
+                    if (data && data.suggestions) {
+                        renderSuggestions(data.suggestions, query);
+                    }
+                } catch (err) {
+                    console.warn('Movie suggestions fetch warning:', err);
+                }
+            };
+
+            searchInput.addEventListener('input', (e) => {
+                const q = e.target.value.trim();
+                clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(() => {
+                    fetchSuggestions(q);
+                }, 200);
+            });
+
+            searchInput.addEventListener('focus', () => {
+                const q = searchInput.value.trim();
+                fetchSuggestions(q);
+            });
+
+            // Keyboard navigation for suggestions
+            searchInput.addEventListener('keydown', (e) => {
+                const items = list.querySelectorAll('.suggestion-item');
+                if (!items.length || dropdown.classList.contains('d-none')) return;
+
+                if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    currentFocusIndex = (currentFocusIndex + 1) % items.length;
+                    updateActiveItem(items);
+                } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    currentFocusIndex = (currentFocusIndex - 1 + items.length) % items.length;
+                    updateActiveItem(items);
+                } else if (e.key === 'Enter') {
+                    if (currentFocusIndex >= 0 && items[currentFocusIndex]) {
+                        e.preventDefault();
+                        window.location.href = items[currentFocusIndex].href;
+                    }
+                } else if (e.key === 'Escape') {
+                    dropdown.classList.add('d-none');
                 }
             });
-        });
+
+            const updateActiveItem = (items) => {
+                items.forEach((item, idx) => {
+                    if (idx === currentFocusIndex) {
+                        item.classList.add('active');
+                        item.scrollIntoView({ block: 'nearest' });
+                    } else {
+                        item.classList.remove('active');
+                    }
+                });
+            };
+
+            // Close dropdown on outside click
+            document.addEventListener('click', (e) => {
+                if (!dropdown.contains(e.target) && !searchInput.contains(e.target)) {
+                    dropdown.classList.add('d-none');
+                }
+            });
+        };
+
+        initSearchSuggestions();
 
         // Global Interactive Trailer Modal Handler
         const trailerModalEl = document.getElementById('globalTrailerModal');
@@ -123,7 +259,6 @@
                 if (finalKey) {
                     embedUrl = `https://www.youtube.com/embed/${finalKey}?autoplay=1`;
                 }
-
 
                 if (trailerTitle) trailerTitle.textContent = `${title} - Official Trailer`;
                 if (trailerWatchBtn) trailerWatchBtn.href = watchUrl;
@@ -161,8 +296,6 @@
                 }
             });
         }
-
-
 
     });
 })();

@@ -56,8 +56,8 @@ def get_personalized_recommendations(user=None, session_key=None, limit=6):
             for mapped_genre in GENRE_AFFINITY_MAP.get(genre.name, []):
                 preferred_genre_names.add(mapped_genre)
 
-    # Step 3: Fetch recommendation queryset (only movies with valid poster artwork)
-    base_qs = Movie.objects.filter(is_active=True).exclude(poster_url__isnull=True).exclude(poster_url='').select_related('language').prefetch_related('genres').distinct()
+    # Step 3: Fetch recommendation queryset
+    base_qs = Movie.objects.filter(is_active=True).select_related('language').prefetch_related('genres').distinct()
 
     if booked_movie_ids:
         base_qs = base_qs.exclude(id__in=booked_movie_ids)
@@ -69,9 +69,10 @@ def get_personalized_recommendations(user=None, session_key=None, limit=6):
         # If recommendation count is less than required limit, fill with top popular movies
         if len(recs) < limit:
             existing_ids = {m.id for m in recs} | booked_movie_ids
-            fallback = base_qs.exclude(id__in=existing_ids).order_by('-popularity')[:(limit - len(recs))]
+            fallback = base_qs.exclude(id__in=existing_ids).order_by('-popularity', '-rating')[:(limit - len(recs))]
             recs.extend(list(fallback))
         return recs[:limit]
 
     # Step 4: Fallback to top trending popular movies for new/guest users
-    return list(base_qs.order_by('-popularity', '-rating')[:limit])
+    fallback_recs = list(base_qs.order_by('-popularity', '-rating')[:limit])
+    return fallback_recs

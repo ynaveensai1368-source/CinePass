@@ -44,28 +44,33 @@ class HomeView(TemplateView):
             status='OPEN'
         )
 
-        # Base optimized queryset - only movies with valid poster artwork
+        # Base optimized queryset
         base_movies = Movie.objects.filter(is_active=True)\
-            .exclude(poster_url__isnull=True).exclude(poster_url='')\
             .annotate(has_active_shows=Exists(active_shows_subquery))\
             .select_related('language').prefetch_related('genres')
 
-        # Hero Banner Movies (Top 5 by popularity with high-res TMDb backdrops)
-        context['hero_movies'] = base_movies.exclude(backdrop_url__isnull=True).exclude(backdrop_url='').order_by('-popularity')[:5]
+        # Hero Banner Movies (Top 5 by popularity with high-res TMDb backdrops, or top popular movies)
+        hero_qs = base_movies.exclude(backdrop_url__isnull=True).exclude(backdrop_url='').order_by('-popularity')[:5]
+        if not hero_qs.exists():
+            hero_qs = base_movies.order_by('-popularity')[:5]
+        context['hero_movies'] = hero_qs
 
         # Category Collections
-        # 1. Now Playing in Theaters: Confirmed active shows AND recent release/now_playing category
-        context['now_playing'] = base_movies.filter(
-            has_active_shows=True
-        ).filter(
-            Q(category='now_playing') | Q(release_date__gte=ninety_days_ago, release_date__lte=today)
+        # 1. Now Playing in Theaters: Confirmed active shows OR recent release/now_playing category
+        now_playing_qs = base_movies.filter(
+            Q(has_active_shows=True) | Q(category='now_playing') | Q(release_date__gte=ninety_days_ago, release_date__lte=today)
         ).order_by('-release_date', '-popularity')[:6]
+        context['now_playing'] = now_playing_qs
 
-        context['popular_movies'] = base_movies.order_by('-popularity')[:6]
-        context['top_rated_movies'] = base_movies.order_by('-rating')[:6]
-        context['upcoming_movies'] = base_movies.filter(
+        context['popular_movies'] = base_movies.order_by('-popularity', '-rating')[:6]
+        context['top_rated_movies'] = base_movies.order_by('-rating', '-popularity')[:6]
+        
+        upcoming_qs = base_movies.filter(
             Q(category='upcoming') | Q(release_date__gt=today)
-        ).order_by('release_date')[:6]
+        ).order_by('release_date', '-popularity')[:6]
+        if not upcoming_qs.exists():
+            upcoming_qs = base_movies.order_by('-release_date')[:6]
+        context['upcoming_movies'] = upcoming_qs
 
         # Personalized Recommendations
         context['recommended_movies'] = get_personalized_recommendations(
@@ -93,7 +98,7 @@ class MovieDiscoveryView(ListView):
     model = Movie
     template_name = 'movies/movie_list.html'
     context_object_name = 'movies'
-    paginate_by = 10
+    paginate_by = 12
 
     def get_queryset(self):
         active_shows_subquery = Show.objects.filter(
@@ -102,7 +107,6 @@ class MovieDiscoveryView(ListView):
             status='OPEN'
         )
         qs = Movie.objects.filter(is_active=True)\
-            .exclude(poster_url__isnull=True).exclude(poster_url='')\
             .annotate(has_active_shows=Exists(active_shows_subquery))\
             .select_related('language').prefetch_related('genres').annotate(
                 min_price=Min('shows__base_price'),
@@ -422,5 +426,69 @@ class MovieAPIDiscoveryView(View):
             'next': page_obj.next_page_number() if page_obj.has_next() else None,
             'previous': page_obj.previous_page_number() if page_obj.has_previous() else None,
             'results': results
+        })
+
+
+class MovieSuggestionsAPIView(View):
+    """
+    REST API endpoint for fast live movie search suggestions & autocomplete.
+    GET /api/movies/suggestions/?q=<query>&limit=8
+    """
+    def get(self, request):
+        from django.http import JsonResponse
+        from django.urls import reverse
+
+        query = request.GET.get('q', '').strip()
+        try:
+            limit = min(int(request.GET.get('limit', 8)), 20)
+        except (ValueError, TypeError):
+            limit = 8
+
+        active_shows_subquery = Show.objects.filter(
+            movie=OuterRef('pk'),
+            start_time__gte=timezone.now(),
+            status='OPEN'
+        )
+
+        qs = Movie.objects.filter(is_active=True)\
+            .annotate(has_active_shows=Exists(active_shows_subquery))\
+            .select_related('language').prefetch_related('genres')
+
+        if query:
+            qs = qs.filter(
+                Q(title__icontains=query) |
+                Q(description__icontains=query) |
+                Q(director__icontains=query) |
+                Q(genres__name__icontains=query) |
+                Q(language__name__icontains=query)
+            ).distinct().order_by('-popularity', '-rating')
+        else:
+            # Return top trending / popular suggestions when query is empty
+            qs = qs.order_by('-popularity', '-rating')
+
+        results = []
+        for movie in qs[:limit]:
+            results.append({
+                'id': movie.id,
+                'title': movie.title,
+                'slug': movie.slug,
+                'url': reverse('movies:detail', kwargs={'slug': movie.slug}),
+                'poster_url': movie.get_poster_url,
+                'backdrop_url': movie.get_backdrop_url,
+                'rating': float(movie.rating) if movie.rating else 0.0,
+                'release_year': movie.release_date.year if movie.release_date else None,
+                'language': movie.language.name if movie.language else '',
+                'genres': [g.name for g in movie.genres.all()[:2]],
+                'duration_formatted': movie.formatted_duration,
+                'has_active_shows': bool(movie.has_active_shows),
+                'category': movie.category,
+                'tagline': movie.tagline,
+            })
+
+        return JsonResponse({
+            'status': 'success',
+            'query': query,
+            'count': len(results),
+            'suggestions': results,
         })
 

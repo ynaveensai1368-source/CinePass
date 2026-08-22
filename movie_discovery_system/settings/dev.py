@@ -23,3 +23,10 @@ EMAIL_BACKEND = os.getenv(
 # Execute Celery tasks eagerly during development & unit testing
 CELERY_TASK_ALWAYS_EAGER = True
 CELERY_TASK_EAGER_PROPAGATES = True
+
+# Use InMemory Channel Layer during development & testing
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels.layers.InMemoryChannelLayer',
+    },
+}

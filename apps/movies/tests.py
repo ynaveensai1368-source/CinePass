@@ -119,3 +119,24 @@ class MovieDiscoverySystemTests(TestCase):
         # Should recommend Interstellar (Sci-Fi affinity) and exclude Inception (already booked)
         self.assertNotIn(self.movie1, recs)
         self.assertIn(self.movie2, recs)
+
+    def test_movie_suggestions_api(self):
+        url = reverse('movies:api_suggestions') + '?q=inc'
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data['status'], 'success')
+        self.assertGreaterEqual(data['count'], 1)
+        titles = [item['title'] for item in data['suggestions']]
+        self.assertIn('Inception', titles)
+        self.assertNotIn('Interstellar', titles)
+
+    def test_home_view_movie_context(self):
+        url = reverse('movies:home')
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('hero_movies', response.context)
+        self.assertIn('popular_movies', response.context)
+        self.assertIn('recommended_movies', response.context)
+        self.assertGreaterEqual(len(response.context['popular_movies']), 1)
+        self.assertGreaterEqual(len(response.context['recommended_movies']), 1)

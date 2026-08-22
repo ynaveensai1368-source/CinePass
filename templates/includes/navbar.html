@@ -19,11 +19,20 @@
 
         <div class="collapse navbar-collapse" id="navbarContent">
             <!-- Global Translucent Rounded Search Bar (Center) -->
-            <form class="d-flex mx-auto my-2 my-lg-0 col-12 col-lg-5" action="{% url 'movies:discovery' %}" method="GET">
-                <div class="input-group search-pill shadow-sm">
+            <form class="d-flex mx-auto my-2 my-lg-0 col-12 col-lg-5 position-relative movie-search-form" action="{% url 'movies:discovery' %}" method="GET" autocomplete="off">
+                <div class="input-group search-pill shadow-sm w-100">
                     <span class="input-group-text bg-transparent border-0 text-white-50 p-0 me-2"><i class="fa-solid fa-magnifying-glass"></i></span>
-                    <input class="form-control" type="search" name="q" placeholder="Search for Movies by title or keyword..." value="{{ request.GET.q|default:'' }}" aria-label="Search">
+                    <input class="form-control movie-search-input" id="movieSearchInput" type="search" name="q" placeholder="Search for Movies by title, genre, actor..." value="{{ request.GET.q|default:'' }}" aria-label="Search" autocomplete="off">
                     <button class="btn btn-danger rounded-pill px-3 py-1 text-white fw-semibold small" type="submit">Search</button>
+                </div>
+                <!-- Live Search Suggestions Container -->
+                <div class="search-suggestions-dropdown d-none position-absolute start-0 end-0 shadow-lg rounded-4 overflow-hidden" id="searchSuggestionsDropdown">
+                    <div class="suggestions-list" id="suggestionsList"></div>
+                    <div class="p-2 border-top border-secondary border-opacity-25 text-center bg-dark-subtle">
+                        <a href="{% url 'movies:discovery' %}" class="text-danger small fw-semibold text-decoration-none view-all-search-link" id="viewAllSearchLink">
+                            View all results <i class="fa-solid fa-arrow-right ms-1"></i>
+                        </a>
+                    </div>
                 </div>
             </form>
 

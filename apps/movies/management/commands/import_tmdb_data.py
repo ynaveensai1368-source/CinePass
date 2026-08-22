@@ -1,6 +1,7 @@
 import datetime
 from django.core.management.base import BaseCommand
 from django.utils import timezone
+from django.db.models import Q
 
 from movies.models import Genre, Language, Movie
 from movies.tmdb_service import tmdb_request

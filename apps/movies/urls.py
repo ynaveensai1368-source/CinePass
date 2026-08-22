@@ -2,7 +2,7 @@ from django.urls import path
 from .views import (
     HomeView, MovieDiscoveryView, MovieDetailView,
     MovieCreateView, MovieUpdateView, MovieDeleteView,
-    MovieAPIDiscoveryView
+    MovieAPIDiscoveryView, MovieSuggestionsAPIView
 )
 
 app_name = 'movies'
@@ -11,6 +11,7 @@ urlpatterns = [
     path('', HomeView.as_view(), name='home'),
     path('discover/', MovieDiscoveryView.as_view(), name='discovery'),
     path('api/movies/', MovieAPIDiscoveryView.as_view(), name='api_discovery'),
+    path('api/movies/suggestions/', MovieSuggestionsAPIView.as_view(), name='api_suggestions'),
     path('movie/<slug:slug>/', MovieDetailView.as_view(), name='detail'),
     path('movie/add/new/', MovieCreateView.as_view(), name='create'),
     path('movie/<slug:slug>/edit/', MovieUpdateView.as_view(), name='update'),
