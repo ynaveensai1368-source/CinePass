@@ -459,13 +459,6 @@ class MovieSuggestionsAPIView(View):
         if def_lang:
             Movie.objects.filter(language__isnull=True).update(language=def_lang)
 
-        if request.GET.get('debug') == '1':
-            all_m = list(Movie.objects.all().values('id', 'title', 'is_active', 'poster_url', 'language_id', 'language__name'))
-            return JsonResponse({
-                'all_movies_count': Movie.objects.count(),
-                'movies': all_m,
-            })
-
         query = request.GET.get('q', '').strip()
         try:
             limit = min(int(request.GET.get('limit', 8)), 20)
