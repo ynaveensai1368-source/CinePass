@@ -16,10 +16,15 @@ class SeatAvailabilityConsumer(AsyncWebsocketConsumer):
         self.show_id = self.scope['url_route']['kwargs']['show_id']
         self.room_group_name = f'show_{self.show_id}_seats'
 
-        await self.channel_layer.group_add(
-            self.room_group_name,
-            self.channel_name
-        )
+        try:
+            if self.channel_layer:
+                await self.channel_layer.group_add(
+                    self.room_group_name,
+                    self.channel_name
+                )
+        except Exception as e:
+            logger.warning(f"WebSocket channel_layer group_add skipped safely: {e}")
+
         await self.accept()
 
         await self.send(text_data=json.dumps({
@@ -29,10 +34,14 @@ class SeatAvailabilityConsumer(AsyncWebsocketConsumer):
         }))
 
     async def disconnect(self, close_code):
-        await self.channel_layer.group_discard(
-            self.room_group_name,
-            self.channel_name
-        )
+        try:
+            if self.channel_layer:
+                await self.channel_layer.group_discard(
+                    self.room_group_name,
+                    self.channel_name
+                )
+        except Exception as e:
+            logger.debug(f"WebSocket channel_layer group_discard skipped: {e}")
 
     async def receive(self, text_data):
         try:

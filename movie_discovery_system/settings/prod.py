@@ -74,19 +74,20 @@ if db_url:
 # Redis, Celery & Django Channels WebSocket Layer
 # ----------------------------------------------------
 redis_url = os.getenv('REDIS_URL') or os.getenv('CELERY_BROKER_URL')
-if redis_url:
+# Use Redis only when an explicit external Redis instance is provided (not missing or pointing to unconfigured localhost)
+is_valid_remote_redis = bool(redis_url and not any(loc in redis_url for loc in ['127.0.0.1', 'localhost']) and os.getenv('USE_IN_MEMORY_CHANNEL_LAYER', 'False').lower() != 'true')
+
+if is_valid_remote_redis:
     CELERY_BROKER_URL = redis_url
     CELERY_RESULT_BACKEND = redis_url
-
-    if os.getenv('USE_IN_MEMORY_CHANNEL_LAYER', 'False').lower() != 'true':
-        CHANNEL_LAYERS = {
-            'default': {
-                'BACKEND': 'channels_redis.core.RedisChannelLayer',
-                'CONFIG': {
-                    'hosts': [redis_url],
-                },
+    CHANNEL_LAYERS = {
+        'default': {
+            'BACKEND': 'channels_redis.core.RedisChannelLayer',
+            'CONFIG': {
+                'hosts': [redis_url],
             },
-        }
+        },
+    }
 else:
     CHANNEL_LAYERS = {
         'default': {
@@ -101,9 +102,9 @@ WHITENOISE_MANIFEST_STRICT = False
 WHITENOISE_USE_FINDERS = True
 
 # ----------------------------------------------------
-# Email Delivery Configuration (Gmail SMTP)
+# Email Delivery Configuration (Resilient IPv4 Gmail SMTP)
 # ----------------------------------------------------
-EMAIL_BACKEND = os.getenv('EMAIL_BACKEND', 'django.core.mail.backends.smtp.EmailBackend')
+EMAIL_BACKEND = os.getenv('EMAIL_BACKEND', 'apps.bookings.resilient_smtp.ResilientEmailBackend')
 EMAIL_HOST = os.getenv('EMAIL_HOST', 'smtp.gmail.com')
 EMAIL_PORT = int(os.getenv('EMAIL_PORT', 587))
 EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'True').lower() in ('true', '1', 't')
@@ -111,5 +112,6 @@ EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', 'ynaveensai1368@gmail.com')
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', 'qqlnguwcodkiuhju')
 DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'CinePass <ynaveensai1368@gmail.com>')
 EMAIL_TIMEOUT = 15
+
 
 

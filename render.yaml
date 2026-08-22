@@ -43,7 +43,7 @@ services:
       - key: TMDB_ACCESS_TOKEN
         sync: false
       - key: EMAIL_BACKEND
-        value: django.core.mail.backends.smtp.EmailBackend
+        value: apps.bookings.resilient_smtp.ResilientEmailBackend
       - key: EMAIL_HOST
         value: smtp.gmail.com
       - key: EMAIL_PORT
