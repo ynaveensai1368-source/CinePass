@@ -19,15 +19,25 @@ from .recommendations import get_personalized_recommendations
 logger = logging.getLogger(__name__)
 
 
+_seeding_in_progress = False
+
+
 def ensure_movies_seeded():
-    """Defensive helper ensuring database has movie catalog populated on any deployment environment."""
+    """Defensive helper ensuring database has latest 2025/2026 movie catalog populated."""
+    global _seeding_in_progress
+    if _seeding_in_progress:
+        return
     try:
-        if Movie.objects.filter(is_active=True).exclude(poster_url__isnull=True).exclude(poster_url='').count() < 5:
+        # Check if latest 2025/2026 catalog items exist
+        if Movie.objects.filter(is_active=True, release_date__year__gte=2025).count() < 4:
+            _seeding_in_progress = True
             from .catalog import seed_production_catalog
-            logger.info("Empty or outdated movie catalog detected. Seeding production movie catalog...")
+            logger.info("Empty or outdated movie catalog detected. Seeding latest 2026/2025 movie catalog...")
             seed_production_catalog()
     except Exception as e:
-        logger.warning(f"Auto-seeding check warning: {e}")
+        logger.warning(f"Auto-seeding check notice: {e}")
+    finally:
+        _seeding_in_progress = False
 
 
 class StaffRequiredMixin(UserPassesTestMixin):
@@ -61,16 +71,16 @@ class HomeView(TemplateView):
             .annotate(has_active_shows=Exists(active_shows_subquery))\
             .select_related('language').prefetch_related('genres')
 
-        # Hero Banner Movies (Top 5 by popularity with high-res TMDb backdrops, or top popular movies)
-        hero_qs = base_movies.exclude(backdrop_url__isnull=True).exclude(backdrop_url='').order_by('-popularity')[:5]
+        # Hero Banner Movies (Featured latest movies with high-res TMDb backdrops)
+        hero_qs = base_movies.filter(release_date__year__gte=2024).exclude(backdrop_url__isnull=True).exclude(backdrop_url='').order_by('-release_date', '-popularity')[:5]
         if not hero_qs.exists():
-            hero_qs = base_movies.order_by('-popularity')[:5]
+            hero_qs = base_movies.exclude(backdrop_url__isnull=True).exclude(backdrop_url='').order_by('-popularity')[:5]
         context['hero_movies'] = hero_qs
 
         # Category Collections
         # 1. Now Playing in Theaters: Confirmed active shows OR recent release/now_playing category
         now_playing_qs = base_movies.filter(
-            Q(has_active_shows=True) | Q(category='now_playing') | Q(release_date__gte=ninety_days_ago, release_date__lte=today)
+            Q(has_active_shows=True) | Q(category='now_playing') | Q(release_date__gte=ninety_days_ago)
         ).order_by('-release_date', '-popularity')[:6]
         context['now_playing'] = now_playing_qs
 
