@@ -22,9 +22,9 @@ logger = logging.getLogger(__name__)
 def ensure_movies_seeded():
     """Defensive helper ensuring database has movie catalog populated on any deployment environment."""
     try:
-        if not Movie.objects.filter(is_active=True).exists():
+        if Movie.objects.filter(is_active=True).exclude(poster_url__isnull=True).exclude(poster_url='').count() < 5:
             from django.core.management import call_command
-            logger.info("Empty movie catalog detected. Auto-seeding production movie catalog...")
+            logger.info("Empty or outdated movie catalog detected. Auto-seeding production movie catalog...")
             call_command('seed_data')
     except Exception as e:
         logger.warning(f"Auto-seeding check warning: {e}")
