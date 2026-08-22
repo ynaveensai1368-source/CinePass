@@ -495,10 +495,12 @@ class MovieSuggestionsAPIView(View):
                 Q(director__icontains=query) |
                 Q(genres__name__icontains=query) |
                 Q(language__name__icontains=query)
-            ).distinct().order_by('-popularity', '-rating')
+            ).distinct().order_by('-release_date', '-popularity')
         else:
-            # Return top trending / popular suggestions when query is empty
-            qs = qs.order_by('-popularity', '-rating')
+            # Return latest 2026/2025 releases when query is empty
+            qs = qs.filter(release_date__year__gte=2024).order_by('-release_date', '-popularity')
+            if not qs.exists():
+                qs = Movie.objects.filter(is_active=True).order_by('-release_date', '-popularity')
 
         results = []
         for movie in qs[:limit]:
