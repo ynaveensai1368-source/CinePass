@@ -15,6 +15,7 @@ def send_booking_email(booking_id):
     Generates official PDF ticket and sends a beautifully formatted confirmation email to customer.
     Includes automatic retries for database sync and SMTP connection resilience.
     """
+    logger.info(f"Ticket email task started for Booking #{booking_id}")
     booking = None
     # Retry fetching booking in case the database transaction is committing
     for attempt in range(3):
@@ -149,7 +150,7 @@ https://cinepass-r9o8.onrender.com/
 </html>
 """
 
-    from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', 'CinePass <ynaveensai1368@gmail.com>')
+    from_email = getattr(settings, 'RESEND_FROM_EMAIL', '') or getattr(settings, 'DEFAULT_FROM_EMAIL', 'CinePass <onboarding@resend.dev>')
 
     email = EmailMultiAlternatives(
         subject=subject,
@@ -160,6 +161,7 @@ https://cinepass-r9o8.onrender.com/
     email.attach_alternative(html_body, "text/html")
 
     # Generate and attach PDF ticket
+    logger.info(f"Generating ticket PDF for Booking #{booking.booking_number}")
     try:
         pdf_bytes = generate_pdf_ticket(booking)
         if pdf_bytes:
@@ -171,23 +173,29 @@ https://cinepass-r9o8.onrender.com/
     except Exception as pdf_err:
         logger.warning(f"PDF ticket generation failed for booking #{booking_id}, sending text ticket email: {pdf_err}")
 
-    # Send email with resilient logging
+    # Send email with resilient logging and error handling
+    logger.info(f"Calling Resend API for {user_email}")
     try:
         sent_count = email.send(fail_silently=False)
-        logger.info(f"✅ Successfully processed PDF ticket email for Booking #{booking.booking_number} to {user_email} (sent_count={sent_count})")
-        return True
+        if sent_count > 0:
+            logger.info(f"Ticket email task completed for Booking #{booking.booking_number}")
+            return True
+        else:
+            logger.error(f"Resend request failed for {user_email}: Email backend reported 0 sent messages.")
+            raise RuntimeError(f"Email delivery reported 0 sent messages for Booking #{booking.booking_number}")
     except Exception as dispatch_err:
-        logger.warning(f"Ticket email dispatch notice for Booking #{booking_id} to {user_email}: {dispatch_err}")
-        return True
+        logger.error(f"Resend request failed for {user_email}: {dispatch_err}")
+        raise dispatch_err
 
 
 @shared_task(bind=True, max_retries=3, default_retry_delay=60)
 def send_booking_email_task(self, booking_id):
     """
     Celery background task wrapper for ticket email delivery.
+    Automatically retries up to 3 times on transient network / provider failures.
     """
     try:
         return send_booking_email(booking_id)
     except Exception as exc:
-        logger.warning(f"Celery ticket email task retry for Booking #{booking_id}: {exc}")
+        logger.warning(f"Celery ticket email task retry (attempt {self.request.retries + 1}/3) for Booking #{booking_id}: {exc}")
         raise self.retry(exc=exc, countdown=60 * (2 ** self.request.retries))

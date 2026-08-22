@@ -149,10 +149,11 @@ class ResilientEmailBackend(EmailBackend):
                 if attachments:
                     payload['attachments'] = attachments
 
-                resp = requests.post('https://api.resend.com/emails', json=payload, headers=headers, timeout=12)
+                logger.info(f"Calling Resend API for {message.to}")
+                resp = requests.post('https://api.resend.com/emails', json=payload, headers=headers, timeout=15)
                 if resp.status_code in (200, 201):
                     sent_count += 1
-                    logger.info(f"✅ Email delivered via Resend API to {message.to}")
+                    logger.info(f"Resend request succeeded for {message.to} (Status {resp.status_code})")
                 elif resp.status_code in (400, 403) and ("testing" in resp.text.lower() or "own email address" in resp.text.lower() or "verify" in resp.text.lower()):
                     # Resend sandbox tier restriction: only allows sending to the verified account owner email
                     owner_match = re.search(r'own email address \(([^)]+)\)', resp.text)
@@ -164,16 +165,24 @@ class ResilientEmailBackend(EmailBackend):
                     logger.info(f"Resend testing sandbox: re-routing ticket email for {message.to} to verified owner {fallback_to}")
                     payload['to'] = [fallback_to]
                     payload['subject'] = f"[For {', '.join(message.to)}] {message.subject}"
-                    retry_resp = requests.post('https://api.resend.com/emails', json=payload, headers=headers, timeout=12)
+                    retry_resp = requests.post('https://api.resend.com/emails', json=payload, headers=headers, timeout=15)
                     if retry_resp.status_code in (200, 201):
                         sent_count += 1
-                        logger.info(f"✅ Resend sandbox ticket email successfully delivered to {fallback_to} (Original recipient: {message.to})")
+                        logger.info(f"Resend request succeeded for sandbox owner {fallback_to} (Original recipient: {message.to})")
                     else:
-                        logger.warning(f"Resend fallback retry returned {retry_resp.status_code}: {retry_resp.text}")
+                        err_msg = f"Resend request failed for {message.to}: Status {retry_resp.status_code} - {retry_resp.text}"
+                        logger.error(err_msg)
+                        if not self.fail_silently:
+                            raise RuntimeError(err_msg)
                 else:
-                    logger.warning(f"Resend API returned {resp.status_code}: {resp.text}")
+                    err_msg = f"Resend request failed for {message.to}: Status {resp.status_code} - {resp.text}"
+                    logger.error(err_msg)
+                    if not self.fail_silently:
+                        raise RuntimeError(err_msg)
             except Exception as e:
-                logger.error(f"Resend API dispatch error: {e}")
+                logger.error(f"Resend request failed for {getattr(message, 'to', [])}: {e}")
+                if not self.fail_silently:
+                    raise
         return sent_count
 
     def _send_via_brevo(self, email_messages, api_key):
