@@ -23,16 +23,15 @@ _seeding_in_progress = False
 
 
 def ensure_movies_seeded():
-    """Defensive helper ensuring database has latest 2025/2026 movie catalog populated."""
+    """Defensive helper ensuring database has latest 2026/2025 movie catalog populated."""
     global _seeding_in_progress
     if _seeding_in_progress:
         return
     try:
-        # Check if latest 2025/2026 catalog items exist
-        if Movie.objects.filter(is_active=True, release_date__year__gte=2025).count() < 4:
+        if not Movie.objects.filter(title='Spider-Man: Brand New Day').exists():
             _seeding_in_progress = True
             from .catalog import seed_production_catalog
-            logger.info("Empty or outdated movie catalog detected. Seeding latest 2026/2025 movie catalog...")
+            logger.info("Outdated movie catalog detected. Seeding latest 2026/2025 movie catalog...")
             seed_production_catalog()
     except Exception as e:
         logger.warning(f"Auto-seeding check notice: {e}")
@@ -72,16 +71,20 @@ class HomeView(TemplateView):
             .select_related('language').prefetch_related('genres')
 
         # Hero Banner Movies (Featured latest movies with high-res TMDb backdrops)
-        hero_qs = base_movies.filter(release_date__year__gte=2024).exclude(backdrop_url__isnull=True).exclude(backdrop_url='').order_by('-release_date', '-popularity')[:5]
+        hero_qs = base_movies.filter(release_date__year__gte=2025).exclude(backdrop_url__isnull=True).exclude(backdrop_url='').order_by('-release_date', '-popularity')[:5]
+        if not hero_qs.exists():
+            hero_qs = base_movies.filter(release_date__year__gte=2024).exclude(backdrop_url__isnull=True).exclude(backdrop_url='').order_by('-release_date', '-popularity')[:5]
         if not hero_qs.exists():
             hero_qs = base_movies.exclude(backdrop_url__isnull=True).exclude(backdrop_url='').order_by('-popularity')[:5]
         context['hero_movies'] = hero_qs
 
         # Category Collections
-        # 1. Now Playing in Theaters: Confirmed active shows OR recent release/now_playing category
+        # 1. Now Playing in Theaters: Latest theatrical releases with verified posters
         now_playing_qs = base_movies.filter(
-            Q(has_active_shows=True) | Q(category='now_playing') | Q(release_date__gte=ninety_days_ago)
-        ).order_by('-release_date', '-popularity')[:6]
+            Q(category='now_playing') | Q(has_active_shows=True) | Q(release_date__gte=ninety_days_ago)
+        ).exclude(release_date__year__lt=2024).order_by('-release_date', '-popularity')[:8]
+        if not now_playing_qs.exists():
+            now_playing_qs = base_movies.order_by('-release_date', '-popularity')[:8]
         context['now_playing'] = now_playing_qs
 
         context['popular_movies'] = base_movies.order_by('-popularity', '-rating')[:6]
