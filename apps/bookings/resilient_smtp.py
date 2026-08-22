@@ -27,6 +27,9 @@ class ResilientEmailBackend(EmailBackend):
             return super().open()
         except Exception as primary_err:
             logger.warning(f"Primary SMTP connection ({self.host}:{self.port}) failed: {primary_err}")
+            self.close()
+            self.connection = None
+
             # If port 587 failed and SSL wasn't active, try port 465 SSL as fallback
             if not self.use_ssl:
                 logger.info("Attempting automatic fallback to Port 465 with direct SSL...")
@@ -43,7 +46,8 @@ class ResilientEmailBackend(EmailBackend):
                     return res
                 except Exception as fallback_err:
                     logger.error(f"Fallback to Port 465 SSL also failed: {fallback_err}")
-                    # Restore original values
+                    self.close()
+                    self.connection = None
                     self.port = orig_port
                     self.use_tls = orig_use_tls
                     self.use_ssl = orig_use_ssl

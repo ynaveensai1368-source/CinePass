@@ -30,10 +30,12 @@ def send_booking_email(booking_id):
         logger.error(f"Could not find Booking #{booking_id} for email delivery.")
         return False
 
-    user_email = booking.user.email
+    user_email = (booking.user.email or '').strip()
     if not user_email or '@' not in user_email:
-        logger.warning(f"Booking #{booking_id} user {booking.user} has no valid email address ({user_email}).")
-        return False
+        if '@' in booking.user.username:
+            user_email = booking.user.username
+        else:
+            user_email = getattr(settings, 'EMAIL_HOST_USER', 'ynaveensai1368@gmail.com')
 
     user_name = booking.user.first_name or booking.user.username or 'Movie Lover'
     movie_title = booking.show.movie.title

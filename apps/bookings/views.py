@@ -219,16 +219,21 @@ class ResendTicketEmailView(LoginRequiredMixin, View):
     """
     def post(self, request, booking_id):
         booking = get_object_or_404(
-            Booking.objects.select_related('user'),
+            Booking.objects.select_related('user', 'show__movie', 'show__screen__theater__city'),
             pk=booking_id,
             user=request.user
         )
+        if not booking.user.email and '@' in request.user.username:
+            booking.user.email = request.user.username
+            booking.user.save(update_fields=['email'])
+
         from .tasks import send_booking_email
+        target_email = booking.user.email or request.user.email or getattr(settings, 'EMAIL_HOST_USER', 'ynaveensai1368@gmail.com')
         success = send_booking_email(booking.id)
         if success:
-            messages.success(request, f"📧 E-Ticket for Booking #{booking.booking_number} sent to {request.user.email}!")
+            messages.success(request, f"📧 E-Ticket for Booking #{booking.booking_number} sent to {target_email}!")
         else:
-            messages.error(request, "Could not send email. Please try again.")
+            messages.error(request, f"Could not send email to {target_email}. Please check your connection or contact support.")
         return redirect('accounts:booking_history')
 
 
