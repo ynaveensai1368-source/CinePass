@@ -45,7 +45,7 @@ services:
       - key: RESEND_API_KEY
         sync: false
       - key: RESEND_FROM_EMAIL
-        sync: false
+        value: CinePass <onboarding@resend.dev>
       - key: BREVO_API_KEY
         sync: false
       - key: SENDGRID_API_KEY

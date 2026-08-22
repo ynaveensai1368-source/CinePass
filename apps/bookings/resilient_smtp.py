@@ -30,10 +30,11 @@ class ResilientEmailBackend(EmailBackend):
         if not email_messages:
             return 0
 
+        import os
         # Check for HTTP REST API keys first (bypasses Render SMTP port blocking)
-        resend_key = getattr(settings, 'RESEND_API_KEY', '') or ''
-        brevo_key = getattr(settings, 'BREVO_API_KEY', '') or getattr(settings, 'SENDINBLUE_API_KEY', '') or ''
-        sendgrid_key = getattr(settings, 'SENDGRID_API_KEY', '') or ''
+        resend_key = getattr(settings, 'RESEND_API_KEY', '') or os.getenv('RESEND_API_KEY', '')
+        brevo_key = getattr(settings, 'BREVO_API_KEY', '') or getattr(settings, 'SENDINBLUE_API_KEY', '') or os.getenv('BREVO_API_KEY', '')
+        sendgrid_key = getattr(settings, 'SENDGRID_API_KEY', '') or os.getenv('SENDGRID_API_KEY', '')
 
         if resend_key:
             return self._send_via_resend(email_messages, resend_key)

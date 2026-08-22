@@ -54,12 +54,6 @@
                                         <a href="{% url 'bookings:download_ticket' booking.id %}" class="btn btn-accent btn-sm">
                                             <i class="fa-solid fa-file-pdf me-1"></i> Download PDF
                                         </a>
-                                        <form method="POST" action="{% url 'bookings:resend_ticket_email' booking.id %}" class="d-inline">
-                                            {% csrf_token %}
-                                            <button type="submit" class="btn btn-outline-light btn-sm" title="Send E-Ticket to your registered email">
-                                                <i class="fa-solid fa-envelope me-1"></i> Email Ticket
-                                            </button>
-                                        </form>
                                         <form method="POST" action="{% url 'bookings:cancel_booking' booking.id %}" class="d-inline" onsubmit="return confirm('Are you sure you want to cancel this ticket booking?');">
                                             {% csrf_token %}
                                             <button type="submit" class="btn btn-outline-danger btn-sm">
