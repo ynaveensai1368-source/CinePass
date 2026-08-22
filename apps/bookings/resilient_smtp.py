@@ -105,18 +105,20 @@ class ResilientEmailBackend(EmailBackend):
     def _send_via_resend(self, email_messages, api_key):
         """Sends email messages using the Resend HTTPS REST API."""
         import os
+        import re
         sent_count = 0
+        cleaned_key = (api_key or '').strip()
         headers = {
-            'Authorization': f'Bearer {api_key}',
+            'Authorization': f'Bearer {cleaned_key}',
             'Content-Type': 'application/json',
         }
         resend_from = getattr(settings, 'RESEND_FROM_EMAIL', '') or os.getenv('RESEND_FROM_EMAIL', '')
         for message in email_messages:
             try:
                 from_email = resend_from
-                if not from_email:
+                if not from_email or '@gmail.com' in from_email or '@yahoo.com' in from_email:
                     default_from = message.from_email or getattr(settings, 'DEFAULT_FROM_EMAIL', '')
-                    if '@gmail.com' in default_from or not default_from:
+                    if not default_from or '@gmail.com' in default_from or '@yahoo.com' in default_from:
                         from_email = 'CinePass <onboarding@resend.dev>'
                     else:
                         from_email = default_from
@@ -125,7 +127,7 @@ class ResilientEmailBackend(EmailBackend):
                     'from': from_email,
                     'to': list(message.to),
                     'subject': message.subject,
-                    'text': message.body,
+                    'text': message.body or ' ',
                 }
                 for content, mimetype in getattr(message, 'alternatives', []):
                     if mimetype == 'text/html':
@@ -136,7 +138,13 @@ class ResilientEmailBackend(EmailBackend):
                 for att in getattr(message, 'attachments', []):
                     if isinstance(att, tuple) and len(att) >= 2:
                         fn, data = att[0], att[1]
-                        b64 = base64.b64encode(data.encode('utf-8') if isinstance(data, str) else data).decode('ascii')
+                        content_bytes = data.encode('utf-8') if isinstance(data, str) else data
+                        b64 = base64.b64encode(content_bytes).decode('ascii')
+                        attachments.append({'filename': fn, 'content': b64})
+                    elif hasattr(att, 'get_payload') and hasattr(att, 'get_filename'):
+                        fn = att.get_filename() or 'ticket.pdf'
+                        payload_data = att.get_payload(decode=True)
+                        b64 = base64.b64encode(payload_data).decode('ascii')
                         attachments.append({'filename': fn, 'content': b64})
                 if attachments:
                     payload['attachments'] = attachments
@@ -145,10 +153,14 @@ class ResilientEmailBackend(EmailBackend):
                 if resp.status_code in (200, 201):
                     sent_count += 1
                     logger.info(f"✅ Email delivered via Resend API to {message.to}")
-                elif resp.status_code == 403 and "testing emails to your own email address" in resp.text:
-                    # Resend sandbox tier restriction: only allows sending to the account owner email (e.g. ynaveensai1368@gmail.com)
-                    # Automatically re-route to account owner so the developer/tester always receives the ticket!
-                    fallback_to = getattr(settings, 'EMAIL_HOST_USER', 'ynaveensai1368@gmail.com')
+                elif resp.status_code in (400, 403) and ("testing" in resp.text.lower() or "own email address" in resp.text.lower() or "verify" in resp.text.lower()):
+                    # Resend sandbox tier restriction: only allows sending to the verified account owner email
+                    owner_match = re.search(r'own email address \(([^)]+)\)', resp.text)
+                    if owner_match:
+                        fallback_to = owner_match.group(1).strip()
+                    else:
+                        fallback_to = getattr(settings, 'EMAIL_HOST_USER', 'ynaveensai1368@gmail.com')
+
                     logger.info(f"Resend testing sandbox: re-routing ticket email for {message.to} to verified owner {fallback_to}")
                     payload['to'] = [fallback_to]
                     payload['subject'] = f"[For {', '.join(message.to)}] {message.subject}"

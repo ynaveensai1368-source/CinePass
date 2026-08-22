@@ -267,18 +267,19 @@ class VerifyPaymentAPIView(LoginRequiredMixin, View):
             show.available_seats = max(0, show.available_seats - len(booking_seats))
             show.save(update_fields=['available_seats'])
 
-            # Dispatch email asynchronously after transaction commits to guarantee clean data read and immediate delivery
-            import threading
-            from bookings.tasks import send_booking_email
+            # Dispatch email asynchronously via Celery after transaction commits
+            from bookings.tasks import send_booking_email_task, send_booking_email
 
             def _dispatch_ticket_email(b_id):
                 try:
-                    send_booking_email(b_id)
-                except Exception as bg_err:
-                    logger.error(f"Background thread ticket email error for Booking #{b_id}: {bg_err}")
+                    send_booking_email_task.delay(b_id)
+                except Exception as celery_err:
+                    logger.warning(f"Celery dispatch fallback for Booking #{b_id}: {celery_err}")
+                    import threading
+                    threading.Thread(target=send_booking_email, args=(b_id,), daemon=True).start()
 
             booking_id_val = booking.id
-            transaction.on_commit(lambda: threading.Thread(target=_dispatch_ticket_email, args=(booking_id_val,), daemon=True).start())
+            transaction.on_commit(lambda: _dispatch_ticket_email(booking_id_val))
 
         return JsonResponse({
             'success': True,
@@ -323,9 +324,15 @@ class PaymentWebhookAPIView(View):
                     if booking.status != 'CONFIRMED':
                         booking.status = 'CONFIRMED'
                         booking.save(update_fields=['status', 'updated_at'])
-                        import threading
-                        from bookings.tasks import send_booking_email
-                        threading.Thread(target=send_booking_email, args=(booking.id,), daemon=True).start()
+                        from bookings.tasks import send_booking_email_task, send_booking_email
+                        def _dispatch_webhook_email(b_id):
+                            try:
+                                send_booking_email_task.delay(b_id)
+                            except Exception:
+                                import threading
+                                threading.Thread(target=send_booking_email, args=(b_id,), daemon=True).start()
+                        _b_id = booking.id
+                        transaction.on_commit(lambda: _dispatch_webhook_email(_b_id))
 
         elif event_type == 'payment.failed' and order_id:
             payment = Payment.objects.filter(order_id=order_id).first()

@@ -19,6 +19,8 @@ Ensure all environment variables are securely configured in your deployment dash
 | `REDIS_URL` | Upstash Redis URI: `rediss://default:pass@region.upstash.io:6379` | Render Web & Worker |
 | `CELERY_BROKER_URL` | Upstash Redis URI: `rediss://default:pass@region.upstash.io:6379/0` | Render Web & Worker |
 | `CELERY_RESULT_BACKEND` | Upstash Redis URI: `rediss://default:pass@region.upstash.io:6379/0` | Render Web & Worker |
+| `RESEND_API_KEY` | Resend API Key: `re_...` | Render Web & Worker |
+| `RESEND_FROM_EMAIL` | Sender address: `CinePass <onboarding@resend.dev>` or verified domain | Render Web & Worker |
 | `RAZORPAY_KEY_ID` | Production Razorpay Key ID: `rzp_live_...` | Render Web & Vercel |
 | `RAZORPAY_KEY_SECRET` | Production Razorpay Secret: `live_secret_...` | Render Web |
 | `RAZORPAY_WEBHOOK_SECRET` | Production Razorpay Webhook Secret: `whsec_...` | Render Web |
@@ -68,7 +70,7 @@ Ensure all environment variables are securely configured in your deployment dash
    ```bash
    celery -A movie_discovery_system worker --loglevel=info
    ```
-5. Attach the same Environment Variables (`DATABASE_URL`, `REDIS_URL`, `CELERY_BROKER_URL`).
+5. Attach the required Environment Variables (`DATABASE_URL`, `REDIS_URL`, `CELERY_BROKER_URL`, `RESEND_API_KEY`, `RESEND_FROM_EMAIL`).
 
 ---
 

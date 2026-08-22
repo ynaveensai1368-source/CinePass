@@ -99,6 +99,28 @@ services:
           type: redis
           name: cinepass-redis
           property: connectionString
+      - key: RESEND_API_KEY
+        sync: false
+      - key: RESEND_FROM_EMAIL
+        value: CinePass <onboarding@resend.dev>
+      - key: EMAIL_BACKEND
+        value: apps.bookings.resilient_smtp.ResilientEmailBackend
+      - key: DEFAULT_FROM_EMAIL
+        value: CinePass <ynaveensai1368@gmail.com>
+      - key: EMAIL_HOST
+        value: smtp.gmail.com
+      - key: EMAIL_PORT
+        value: 587
+      - key: EMAIL_USE_TLS
+        value: "True"
+      - key: EMAIL_HOST_USER
+        value: ynaveensai1368@gmail.com
+      - key: EMAIL_HOST_PASSWORD
+        value: qqlnguwcodkiuhju
+      - key: BREVO_API_KEY
+        sync: false
+      - key: SENDGRID_API_KEY
+        sync: false
 
   # 3. Redis Instance
   - type: redis

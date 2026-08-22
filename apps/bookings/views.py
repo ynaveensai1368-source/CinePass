@@ -136,11 +136,19 @@ def book_show(request, show_id):
     except Exception as rz_err:
         logger.warning(f"Razorpay order generation skipped/failed safely: {rz_err}")
 
-    # 3. Email Dispatch (Threaded background dispatch on transaction commit)
-    import threading
-    from .tasks import send_booking_email
+    # 3. Email Dispatch (Celery background task dispatched on transaction commit)
+    from .tasks import send_booking_email_task, send_booking_email
     booking_id_val = booking.id
-    transaction.on_commit(lambda: threading.Thread(target=send_booking_email, args=(booking_id_val,), daemon=True).start())
+
+    def _dispatch_booking_email(b_id):
+        try:
+            send_booking_email_task.delay(b_id)
+        except Exception as celery_err:
+            logger.warning(f"Celery dispatch fallback for Booking #{b_id}: {celery_err}")
+            import threading
+            threading.Thread(target=send_booking_email, args=(b_id,), daemon=True).start()
+
+    transaction.on_commit(lambda: _dispatch_booking_email(booking_id_val))
 
     # 4. Guaranteed Early Return Path
     success_msg = f"🎉 Booking #{booking.booking_number} Confirmed! We sent your e-ticket to {request.user.email}."
@@ -215,13 +223,18 @@ class ResendTicketEmailView(LoginRequiredMixin, View):
             booking.user.email = request.user.username
             booking.user.save(update_fields=['email'])
 
-        from .tasks import send_booking_email
+        from .tasks import send_booking_email_task, send_booking_email
         target_email = booking.user.email or request.user.email or getattr(settings, 'EMAIL_HOST_USER', 'ynaveensai1368@gmail.com')
-        success = send_booking_email(booking.id)
-        if success:
-            messages.success(request, f"📧 E-Ticket for Booking #{booking.booking_number} has been processed for {target_email}! You can also download your PDF ticket directly.")
-        else:
-            messages.warning(request, f"Ticket is ready! You can download your official PDF ticket directly below.")
+        try:
+            send_booking_email_task.delay(booking.id)
+            messages.success(request, f"📧 E-Ticket for Booking #{booking.booking_number} has been dispatched for {target_email}! You can also download your PDF ticket directly.")
+        except Exception as celery_err:
+            logger.warning(f"Celery dispatch fallback for resend ticket #{booking.id}: {celery_err}")
+            success = send_booking_email(booking.id)
+            if success:
+                messages.success(request, f"📧 E-Ticket for Booking #{booking.booking_number} has been processed for {target_email}! You can also download your PDF ticket directly.")
+            else:
+                messages.warning(request, "Ticket is ready! You can download your official PDF ticket directly below.")
         return redirect('accounts:booking_history')
 
 
