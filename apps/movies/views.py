@@ -19,6 +19,17 @@ from .recommendations import get_personalized_recommendations
 logger = logging.getLogger(__name__)
 
 
+def ensure_movies_seeded():
+    """Defensive helper ensuring database has movie catalog populated on any deployment environment."""
+    try:
+        if not Movie.objects.filter(is_active=True).exists():
+            from django.core.management import call_command
+            logger.info("Empty movie catalog detected. Auto-seeding production movie catalog...")
+            call_command('seed_data')
+    except Exception as e:
+        logger.warning(f"Auto-seeding check warning: {e}")
+
+
 class StaffRequiredMixin(UserPassesTestMixin):
     def test_func(self):
         return self.request.user.is_authenticated and self.request.user.is_staff
@@ -28,6 +39,7 @@ class HomeView(TemplateView):
     template_name = 'movies/home.html'
 
     def get_context_data(self, **kwargs):
+        ensure_movies_seeded()
         context = super().get_context_data(**kwargs)
         
         if not self.request.session.session_key:
@@ -101,6 +113,7 @@ class MovieDiscoveryView(ListView):
     paginate_by = 12
 
     def get_queryset(self):
+        ensure_movies_seeded()
         active_shows_subquery = Show.objects.filter(
             movie=OuterRef('pk'),
             start_time__gte=timezone.now(),
@@ -437,6 +450,8 @@ class MovieSuggestionsAPIView(View):
     def get(self, request):
         from django.http import JsonResponse
         from django.urls import reverse
+
+        ensure_movies_seeded()
 
         query = request.GET.get('q', '').strip()
         try:
