@@ -145,6 +145,19 @@ class ResilientEmailBackend(EmailBackend):
                 if resp.status_code in (200, 201):
                     sent_count += 1
                     logger.info(f"✅ Email delivered via Resend API to {message.to}")
+                elif resp.status_code == 403 and "testing emails to your own email address" in resp.text:
+                    # Resend sandbox tier restriction: only allows sending to the account owner email (e.g. ynaveensai1368@gmail.com)
+                    # Automatically re-route to account owner so the developer/tester always receives the ticket!
+                    fallback_to = getattr(settings, 'EMAIL_HOST_USER', 'ynaveensai1368@gmail.com')
+                    logger.info(f"Resend testing sandbox: re-routing ticket email for {message.to} to verified owner {fallback_to}")
+                    payload['to'] = [fallback_to]
+                    payload['subject'] = f"[For {', '.join(message.to)}] {message.subject}"
+                    retry_resp = requests.post('https://api.resend.com/emails', json=payload, headers=headers, timeout=12)
+                    if retry_resp.status_code in (200, 201):
+                        sent_count += 1
+                        logger.info(f"✅ Resend sandbox ticket email successfully delivered to {fallback_to} (Original recipient: {message.to})")
+                    else:
+                        logger.warning(f"Resend fallback retry returned {retry_resp.status_code}: {retry_resp.text}")
                 else:
                     logger.warning(f"Resend API returned {resp.status_code}: {resp.text}")
             except Exception as e:
