@@ -159,3 +159,19 @@ class PaymentsSystemTests(TestCase):
         self.assertEqual(payment.status, 'SUCCESS')
         self.booking.refresh_from_db()
         self.assertEqual(self.booking.status, 'CONFIRMED')
+
+    def test_demo_sign_api(self):
+        self.client.login(email='payuser@example.com', password='Password123')
+        url = reverse('payments:api_demo_sign')
+        response = self.client.post(
+            url,
+            data=json.dumps({'order_id': 'order_demo_test', 'payment_id': 'pay_demo_test'}),
+            content_type='application/json'
+        )
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertTrue(data['success'])
+        self.assertIn('signature', data)
+        # Verify generated signature
+        is_valid = verify_razorpay_signature('order_demo_test', 'pay_demo_test', data['signature'])
+        self.assertTrue(is_valid)

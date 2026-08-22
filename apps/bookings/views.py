@@ -128,23 +128,11 @@ def book_show(request, show_id):
         messages.error(request, err_msg)
         return redirect('bookings:book_tickets', show_id=show.id)
 
-    # 2. Razorpay API Integration with Try...Except and Strict Request Timeout
+    # 2. Razorpay API Integration with Safe Sandbox Fallback
     razorpay_order = None
     try:
-        rz_key = getattr(settings, 'RAZORPAY_KEY_ID', None)
-        rz_secret = getattr(settings, 'RAZORPAY_KEY_SECRET', None)
-        if rz_key and rz_secret:
-            import razorpay
-            client = razorpay.Client(auth=(rz_key, rz_secret))
-            # Set request socket timeout to 5 seconds to prevent thread hanging
-            if hasattr(client, 'session') and hasattr(client.session, 'timeout'):
-                client.session.timeout = 5
-            razorpay_order = client.order.create({
-                'amount': int(grand_total * 100),
-                'currency': 'INR',
-                'receipt': booking.booking_number,
-                'payment_capture': 1
-            })
+        from payments.services import create_razorpay_order
+        razorpay_order = create_razorpay_order(float(grand_total), receipt=booking.booking_number)
     except Exception as rz_err:
         logger.warning(f"Razorpay order generation skipped/failed safely: {rz_err}")
 
@@ -231,9 +219,9 @@ class ResendTicketEmailView(LoginRequiredMixin, View):
         target_email = booking.user.email or request.user.email or getattr(settings, 'EMAIL_HOST_USER', 'ynaveensai1368@gmail.com')
         success = send_booking_email(booking.id)
         if success:
-            messages.success(request, f"📧 E-Ticket for Booking #{booking.booking_number} sent to {target_email}!")
+            messages.success(request, f"📧 E-Ticket for Booking #{booking.booking_number} has been processed for {target_email}! You can also download your PDF ticket directly.")
         else:
-            messages.error(request, f"Could not send email to {target_email}. Please check your connection or contact support.")
+            messages.warning(request, f"Ticket is ready! You can download your official PDF ticket directly below.")
         return redirect('accounts:booking_history')
 
 

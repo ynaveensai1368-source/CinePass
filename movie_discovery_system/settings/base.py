@@ -200,8 +200,11 @@ AUTHENTICATION_BACKENDS = [
     'django.contrib.auth.backends.ModelBackend',
 ]
 
-# Email Configuration (Resilient IPv4 Gmail SMTP)
+# Email Configuration (Resilient Multi-Strategy: HTTPS REST APIs + IPv4 SMTP + Fallback)
 EMAIL_BACKEND = os.getenv('EMAIL_BACKEND', 'apps.bookings.resilient_smtp.ResilientEmailBackend')
+RESEND_API_KEY = os.getenv('RESEND_API_KEY', '')
+BREVO_API_KEY = os.getenv('BREVO_API_KEY', os.getenv('SENDINBLUE_API_KEY', ''))
+SENDGRID_API_KEY = os.getenv('SENDGRID_API_KEY', '')
 EMAIL_HOST = os.getenv('EMAIL_HOST', 'smtp.gmail.com')
 EMAIL_PORT = int(os.getenv('EMAIL_PORT', 587))
 EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'True').lower() == 'true'

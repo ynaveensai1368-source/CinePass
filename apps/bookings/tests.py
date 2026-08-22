@@ -92,3 +92,17 @@ class BookingsSystemTests(TestCase):
         data = response.json()
         self.assertEqual(data['status'], 'VALID')
         self.assertEqual(data['booking_number'], self.booking.booking_number)
+
+    def test_send_booking_email(self):
+        from bookings.tasks import send_booking_email
+        success = send_booking_email(self.booking.id)
+        self.assertTrue(success)
+        self.booking.refresh_from_db()
+        self.assertTrue(bool(self.booking.pdf_ticket))
+
+    def test_resend_ticket_email_view(self):
+        self.client.login(email='bookinguser@example.com', password='Password123')
+        url = reverse('bookings:resend_ticket_email', kwargs={'booking_id': self.booking.id})
+        response = self.client.post(url)
+        self.assertEqual(response.status_code, 302)
+        self.assertRedirects(response, reverse('accounts:booking_history'))

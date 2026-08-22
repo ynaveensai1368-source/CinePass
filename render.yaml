@@ -42,6 +42,12 @@ services:
         sync: false
       - key: TMDB_ACCESS_TOKEN
         sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: BREVO_API_KEY
+        sync: false
+      - key: SENDGRID_API_KEY
+        sync: false
       - key: EMAIL_BACKEND
         value: apps.bookings.resilient_smtp.ResilientEmailBackend
       - key: EMAIL_HOST
