@@ -262,18 +262,24 @@ class Movie(TimeStampedModel):
 
     @property
     def get_poster_url(self):
-        """Returns local uploaded poster URL or TMDb poster URL."""
-        if self.poster and hasattr(self.poster, 'url'):
-            return self.poster.url
+        """Returns local uploaded poster URL, normalized TMDb poster URL, or clean fallback."""
+        from movies.utils.images import normalize_image_url, FALLBACK_POSTER
+        if self.poster:
+            try:
+                if hasattr(self.poster, 'url') and self.poster.name:
+                    return self.poster.url
+            except Exception:
+                pass
         if self.poster_url:
-            return self.poster_url
-        return '/static/images/fallback_poster.png'
+            return normalize_image_url(self.poster_url, size='w500', is_backdrop=False)
+        return FALLBACK_POSTER
 
     @property
     def get_backdrop_url(self):
-        """Returns official TMDb backdrop URL or poster URL as fallback."""
+        """Returns normalized official TMDb backdrop URL, or poster URL / clean fallback."""
+        from movies.utils.images import normalize_image_url
         if self.backdrop_url:
-            return self.backdrop_url
+            return normalize_image_url(self.backdrop_url, size='w1280', is_backdrop=True)
         return self.get_poster_url
 
     @property
@@ -354,6 +360,20 @@ class Poster(TimeStampedModel):
         ordering = ['-is_primary', '-created_at']
         verbose_name = 'Movie Poster'
         verbose_name_plural = 'Movie Posters'
+
+    @property
+    def get_image_url(self):
+        """Returns normalized image URL for gallery poster."""
+        from movies.utils.images import normalize_image_url, FALLBACK_POSTER
+        if self.image:
+            try:
+                if hasattr(self.image, 'url') and self.image.name:
+                    return self.image.url
+            except Exception:
+                pass
+        if self.image_url:
+            return normalize_image_url(self.image_url, size='w500', is_backdrop=False)
+        return FALLBACK_POSTER
 
     def __str__(self):
         return f"Poster for {self.movie.title} ({'Primary' if self.is_primary else 'Gallery'})"

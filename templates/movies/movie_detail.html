@@ -188,7 +188,7 @@
         <div class="row row-cols-2 row-cols-sm-3 row-cols-md-4 g-3">
             {% for poster in movie.posters.all %}
                 <div class="col">
-                    <img src="{{ poster.image.url|default:poster.image_url }}" alt="Poster for {{ movie.title }}" class="img-fluid rounded-3 border border-white-10 shadow-sm hover-zoom">
+                    <img src="{{ poster.get_image_url }}" alt="Poster for {{ movie.title }}" class="img-fluid rounded-3 border border-white-10 shadow-sm hover-zoom" onerror="this.onerror=null; this.src='{% static 'images/fallback_poster.png' %}';">
                 </div>
             {% endfor %}
         </div>

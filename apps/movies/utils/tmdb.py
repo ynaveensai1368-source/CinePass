@@ -80,6 +80,20 @@ def get_youtube_watch_url(url_or_id, title=None):
     return url_or_id if url_or_id else '#'
 
 
+_session = None
+
+def get_tmdb_session():
+    global _session
+    if _session is None:
+        _session = requests.Session()
+        from urllib3.util import Retry
+        retries = Retry(total=3, backoff_factor=0.2, status_forcelist=[500, 502, 503, 504])
+        adapter = requests.adapters.HTTPAdapter(pool_connections=10, pool_maxsize=20, max_retries=retries)
+        _session.mount('https://', adapter)
+        _session.mount('http://', adapter)
+    return _session
+
+
 def tmdb_request(endpoint, params=None):
     """
     Executes a cached HTTP GET request to TMDB API endpoints with sanitized cache keys.
@@ -105,7 +119,8 @@ def tmdb_request(endpoint, params=None):
         if TMDB_ACCESS_TOKEN:
             headers['Authorization'] = f"Bearer {TMDB_ACCESS_TOKEN}"
 
-        response = requests.get(url, params=params, headers=headers, timeout=6)
+        session = get_tmdb_session()
+        response = session.get(url, params=params, headers=headers, timeout=8)
         if response.status_code == 200:
             data = response.json()
             cache.set(cache_key, data, timeout=3600)  # Cache for 1 hour

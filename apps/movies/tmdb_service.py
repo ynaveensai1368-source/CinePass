@@ -59,39 +59,10 @@ def get_youtube_watch_url(url_or_id):
 
 def tmdb_request(endpoint, params=None):
     """
-    Executes a cached HTTP GET request to TMDB API endpoints.
+    Executes a cached HTTP GET request to TMDB API endpoints with connection pooling and retries.
     """
-    if params is None:
-        params = {}
-
-    if TMDB_API_KEY:
-        params['api_key'] = TMDB_API_KEY
-
-    param_str = '&'.join(f"{k}={v}" for k, v in sorted(params.items()))
-    param_hash = hashlib.md5(param_str.encode('utf-8')).hexdigest()
-    clean_endpoint = endpoint.strip('/').replace('/', '_')
-    cache_key = f"tmdb_{clean_endpoint}_{param_hash}"
-    cached_res = cache.get(cache_key)
-    if cached_res:
-        return cached_res
-
-
-    try:
-        url = f"{TMDB_BASE_URL}/{endpoint.lstrip('/')}"
-        headers = {'accept': 'application/json'}
-        access_token = getattr(settings, 'TMDB_ACCESS_TOKEN', '')
-        if access_token:
-            headers['Authorization'] = f"Bearer {access_token}"
-
-        response = requests.get(url, params=params, headers=headers, timeout=5)
-        if response.status_code == 200:
-            data = response.json()
-            cache.set(cache_key, data, timeout=3600)  # Cache for 1 hour
-            return data
-    except Exception as e:
-        logger.error(f"TMDB API request failed for {endpoint}: {e}")
-
-    return None
+    from .utils.tmdb import tmdb_request as shared_tmdb_request
+    return shared_tmdb_request(endpoint, params=params)
 
 
 def get_popular_movies_tmdb(page=1):

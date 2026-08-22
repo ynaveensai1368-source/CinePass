@@ -7,6 +7,11 @@ from .tmdb import (
     get_movie_trailer_url,
     search_tmdb_movie_id,
 )
+from .images import (
+    normalize_image_url,
+    FALLBACK_POSTER,
+    FALLBACK_BACKDROP,
+)
 
 __all__ = [
     'extract_youtube_id',
@@ -16,4 +21,7 @@ __all__ = [
     'get_movie_trailer_key',
     'get_movie_trailer_url',
     'search_tmdb_movie_id',
+    'normalize_image_url',
+    'FALLBACK_POSTER',
+    'FALLBACK_BACKDROP',
 ]

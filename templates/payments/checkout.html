@@ -23,7 +23,7 @@
                     <!-- Movie & Venue Details Grid -->
                     <div class="row align-items-center mb-4 pb-4 border-bottom border-glass">
                         <div class="col-md-3 mb-3 mb-md-0">
-                            <img src="{{ show.movie.get_poster_url }}" alt="{{ show.movie.title }}" class="img-fluid rounded-3 shadow">
+                            <img src="{{ show.movie.get_poster_url }}" alt="{{ show.movie.title }}" class="img-fluid rounded-3 shadow" onerror="this.onerror=null; this.src='{% static 'images/fallback_poster.png' %}';">
                         </div>
                         <div class="col-md-9">
                             <h4 class="text-white fw-bold mb-2">{{ show.movie.title }}</h4>

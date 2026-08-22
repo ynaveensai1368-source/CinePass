@@ -140,3 +140,48 @@ class MovieDiscoverySystemTests(TestCase):
         self.assertIn('recommended_movies', response.context)
         self.assertGreaterEqual(len(response.context['popular_movies']), 1)
         self.assertGreaterEqual(len(response.context['recommended_movies']), 1)
+
+    def test_image_url_normalization_and_fallback(self):
+        from movies.utils.images import normalize_image_url, FALLBACK_POSTER
+
+        # 1. Relative TMDb path
+        self.assertEqual(
+            normalize_image_url('/abc123xyz.jpg', size='w500'),
+            'https://image.tmdb.org/t/p/w500/abc123xyz.jpg'
+        )
+
+        # 2. Insecure HTTP upgrade
+        self.assertEqual(
+            normalize_image_url('http://image.tmdb.org/t/p/w500/abc.jpg'),
+            'https://image.tmdb.org/t/p/w500/abc.jpg'
+        )
+
+        # 3. Empty / None fallback
+        self.assertEqual(normalize_image_url(None), FALLBACK_POSTER)
+        self.assertEqual(normalize_image_url(''), FALLBACK_POSTER)
+
+        # 4. Movie model properties
+        test_m = Movie.objects.create(
+            title='Test Poster Movie',
+            description='Test description',
+            language=self.lang,
+            duration=120,
+            release_date=datetime.date(2024, 1, 1),
+            poster_url='/testposter.jpg',
+            backdrop_url='/testbackdrop.jpg'
+        )
+        self.assertEqual(test_m.get_poster_url, 'https://image.tmdb.org/t/p/w500/testposter.jpg')
+        self.assertEqual(test_m.get_backdrop_url, 'https://image.tmdb.org/t/p/w1280/testbackdrop.jpg')
+
+        # Fallback when poster_url is empty
+        empty_m = Movie.objects.create(
+            title='Empty Poster Movie',
+            description='Test description',
+            language=self.lang,
+            duration=120,
+            release_date=datetime.date(2024, 1, 1),
+            poster_url='',
+            backdrop_url=''
+        )
+        self.assertEqual(empty_m.get_poster_url, FALLBACK_POSTER)
+        self.assertEqual(empty_m.get_backdrop_url, FALLBACK_POSTER)
