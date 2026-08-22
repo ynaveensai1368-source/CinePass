@@ -213,6 +213,25 @@ class DownloadTicketPDFView(LoginRequiredMixin, View):
             return redirect('accounts:booking_history')
 
 
+class ResendTicketEmailView(LoginRequiredMixin, View):
+    """
+    Allows user to re-trigger sending of the e-ticket to their registered email address.
+    """
+    def post(self, request, booking_id):
+        booking = get_object_or_404(
+            Booking.objects.select_related('user'),
+            pk=booking_id,
+            user=request.user
+        )
+        from .tasks import send_booking_email
+        success = send_booking_email(booking.id)
+        if success:
+            messages.success(request, f"📧 E-Ticket for Booking #{booking.booking_number} sent to {request.user.email}!")
+        else:
+            messages.error(request, "Could not send email. Please try again.")
+        return redirect('accounts:booking_history')
+
+
 class VerifyTicketView(View):
     """
     Public ticket verification view for QR code scanning at theater entrance.
