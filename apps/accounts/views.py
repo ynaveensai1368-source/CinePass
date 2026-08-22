@@ -18,7 +18,7 @@ class RegisterView(CreateView):
 
     def form_valid(self, form):
         user = form.save()
-        login(self.request, user)
+        login(self.request, user, backend='accounts.backends.EmailOrUsernameModelBackend')
         messages.success(self.request, f"Welcome to Movie Discovery, {user.first_name or user.username}! Account created successfully.")
         return redirect(self.success_url)
 

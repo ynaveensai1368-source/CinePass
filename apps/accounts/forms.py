@@ -18,6 +18,24 @@ class UserRegistrationForm(UserCreationForm):
             if 'class' not in field.widget.attrs:
                 field.widget.attrs['class'] = 'form-control'
 
+    def clean_email(self):
+        email = self.cleaned_data.get('email', '').strip().lower()
+        if User.objects.filter(email__iexact=email).exists():
+            raise forms.ValidationError("An account with this email address already exists. Please sign in.")
+        return email
+
+    def clean_username(self):
+        username = self.cleaned_data.get('username', '').strip()
+        if User.objects.filter(username__iexact=username).exists():
+            raise forms.ValidationError("This username is already taken. Please choose another username.")
+        return username
+
+    def clean_first_name(self):
+        return self.cleaned_data.get('first_name', '').strip()
+
+    def clean_last_name(self):
+        return self.cleaned_data.get('last_name', '').strip()
+
 
 class UserLoginForm(AuthenticationForm):
     username = forms.CharField(widget=forms.TextInput(attrs={'placeholder': 'Email or Username', 'class': 'form-control'}))

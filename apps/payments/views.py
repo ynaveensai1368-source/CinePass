@@ -267,16 +267,17 @@ class VerifyPaymentAPIView(LoginRequiredMixin, View):
             show.available_seats = max(0, show.available_seats - len(booking_seats))
             show.save(update_fields=['available_seats'])
 
-        # Enqueue async Celery email task with PDF ticket (with sync fallback)
+        # Dispatch email asynchronously in background thread to guarantee immediate delivery on any environment
+        import threading
         from bookings.tasks import send_booking_email
-        try:
-            send_booking_email_task.delay(booking.id)
-        except Exception as e:
-            logger.warning(f"Failed to enqueue Celery email task, running sync fallback: {e}")
+
+        def _dispatch_ticket_email():
             try:
                 send_booking_email(booking.id)
-            except Exception as sync_err:
-                logger.error(f"Sync email fallback error: {sync_err}")
+            except Exception as bg_err:
+                logger.error(f"Background thread ticket email error for Booking #{booking.id}: {bg_err}")
+
+        threading.Thread(target=_dispatch_ticket_email, daemon=True).start()
 
         return JsonResponse({
             'success': True,
@@ -321,10 +322,9 @@ class PaymentWebhookAPIView(View):
                     if booking.status != 'CONFIRMED':
                         booking.status = 'CONFIRMED'
                         booking.save(update_fields=['status', 'updated_at'])
-                        try:
-                            send_booking_email_task.delay(booking.id)
-                        except Exception:
-                            pass
+                        import threading
+                        from bookings.tasks import send_booking_email
+                        threading.Thread(target=send_booking_email, args=(booking.id,), daemon=True).start()
 
         elif event_type == 'payment.failed' and order_id:
             payment = Payment.objects.filter(order_id=order_id).first()

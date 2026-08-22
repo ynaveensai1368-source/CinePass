@@ -42,6 +42,20 @@ services:
         sync: false
       - key: TMDB_ACCESS_TOKEN
         sync: false
+      - key: EMAIL_BACKEND
+        value: django.core.mail.backends.smtp.EmailBackend
+      - key: EMAIL_HOST
+        value: smtp.gmail.com
+      - key: EMAIL_PORT
+        value: 587
+      - key: EMAIL_USE_TLS
+        value: "True"
+      - key: EMAIL_HOST_USER
+        value: ynaveensai1368@gmail.com
+      - key: EMAIL_HOST_PASSWORD
+        value: qqlnguwcodkiuhju
+      - key: DEFAULT_FROM_EMAIL
+        value: CinePass <ynaveensai1368@gmail.com>
 
   # 2. Celery Worker Background Service
   - type: worker
