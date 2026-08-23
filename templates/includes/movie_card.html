@@ -15,9 +15,11 @@
             </span>
         {% endif %}
 
-        <span class="language-badge z-2">
-            {{ movie.language.name }}
-        </span>
+        {% if movie.language and movie.language.name %}
+            <span class="language-badge z-2">
+                {{ movie.language.name }}
+            </span>
+        {% endif %}
 
         {% if movie.has_trailer %}
             <button type="button" class="card-play-btn play-trailer-btn z-3" 

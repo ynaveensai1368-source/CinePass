@@ -48,10 +48,10 @@
     <!-- Language Filter -->
     <div class="mb-3">
         <label class="form-label text-secondary small fw-semibold">Language</label>
-        <select name="language" class="form-select form-select-sm auto-filter">
+        <select name="language" id="filterLanguageSelect" class="form-select form-select-sm auto-filter">
             <option value="">All Languages</option>
             {% for l in languages %}
-                <option value="{{ l.id }}" {% if current_language == l.id|slugify %}selected{% endif %}>{{ l.name }}</option>
+                <option value="{{ l.id }}" {% if current_language == l.id|slugify or current_language == l.code %}selected{% endif %}>{{ l.name }}</option>
             {% endfor %}
         </select>
     </div>
@@ -59,21 +59,23 @@
     <!-- City Filter -->
     <div class="mb-3">
         <label class="form-label text-secondary small fw-semibold">City</label>
-        <select name="city" class="form-select form-select-sm auto-filter">
+        <select name="city" id="filterCitySelect" class="form-select form-select-sm auto-filter">
             <option value="">All Cities</option>
             {% for c in cities %}
-                <option value="{{ c.id }}" {% if current_city == c.id|slugify %}selected{% endif %}>{{ c.name }}</option>
+                <option value="{{ c.id }}" {% if current_city == c.id|slugify or current_city_id == c.id %}selected{% endif %}>{{ c.name }}</option>
             {% endfor %}
         </select>
     </div>
 
-    <!-- Theater Filter -->
+    <!-- Theater Filter (Dynamically coupled to selected city) -->
     <div class="mb-3">
         <label class="form-label text-secondary small fw-semibold">Theater</label>
-        <select name="theater" class="form-select form-select-sm auto-filter">
+        <select name="theater" id="filterTheaterSelect" class="form-select form-select-sm auto-filter">
             <option value="">All Theaters</option>
             {% for t in theaters %}
-                <option value="{{ t.id }}" {% if current_theater == t.id|slugify %}selected{% endif %}>{{ t.name }} ({{ t.city.name }})</option>
+                <option value="{{ t.id }}" data-city-id="{{ t.city_id }}" {% if current_theater == t.id|slugify %}selected{% endif %}>
+                    {{ t.name }}{% if not current_city %} ({{ t.city.name }}){% endif %}
+                </option>
             {% endfor %}
         </select>
     </div>

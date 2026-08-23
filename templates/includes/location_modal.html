@@ -1,0 +1,90 @@
+<!-- BookMyShow-Style Interactive City Location Modal -->
+<div class="modal fade" id="locationModal" tabindex="-1" aria-labelledby="locationModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content bg-card border-secondary shadow-lg rounded-4 overflow-hidden">
+            <!-- Modal Header -->
+            <div class="modal-header border-secondary border-opacity-25 px-4 py-3 bg-body-tertiary">
+                <div class="d-flex align-items-center gap-2">
+                    <i class="fa-solid fa-location-dot text-danger fs-4"></i>
+                    <h5 class="modal-title text-white fw-bold mb-0" id="locationModalLabel">Select Your City</h5>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+
+            <div class="modal-body p-4">
+                <!-- Search & Auto-Detect Row -->
+                <div class="row g-3 mb-4">
+                    <div class="col-md-7">
+                        <div class="input-group">
+                            <span class="input-group-text bg-input border-secondary text-secondary">
+                                <i class="fa-solid fa-magnifying-glass"></i>
+                            </span>
+                            <input type="text" id="citySearchInput" class="form-control bg-input border-secondary text-white" 
+                                   placeholder="Search for your city (e.g. Hyderabad, Chennai, Mumbai)..." autocomplete="off">
+                        </div>
+                    </div>
+                    <div class="col-md-5">
+                        <button type="button" id="detectLocationBtn" class="btn btn-outline-accent w-100 d-flex align-items-center justify-content-center gap-2 py-2 shadow-sm">
+                            <i class="fa-solid fa-crosshairs text-danger" id="detectLocationIcon"></i>
+                            <span id="detectLocationText" class="fw-semibold">Detect My Location</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Geolocation Feedback Banner -->
+                <div id="locationAlertBanner" class="alert alert-info py-2 px-3 d-none mb-3 small d-flex align-items-center gap-2">
+                    <i class="fa-solid fa-circle-info"></i>
+                    <span id="locationAlertText">Detecting your location...</span>
+                </div>
+
+                <!-- Popular Metro Cities Grid -->
+                <div class="mb-4" id="popularCitiesSection">
+                    <h6 class="text-secondary text-uppercase fw-bold small mb-3 tracking-wide">
+                        <i class="fa-solid fa-fire text-warning me-1"></i> Popular Cities
+                    </h6>
+                    <div class="row row-cols-2 row-cols-sm-3 row-cols-md-4 g-2">
+                        {% for pcity in popular_cities %}
+                            <div class="col city-item" data-city-name="{{ pcity.name|lower }}" data-city-id="{{ pcity.id }}">
+                                <button type="button" class="btn w-100 text-start d-flex align-items-center justify-content-between p-2 rounded-3 city-select-btn {% if current_city_id == pcity.id %}btn-accent{% else %}btn-outline-secondary text-light{% endif %}"
+                                        data-city-id="{{ pcity.id }}" data-city-name="{{ pcity.name }}">
+                                    <span class="fw-semibold text-truncate">{{ pcity.name }}</span>
+                                    {% if current_city_id == pcity.id %}
+                                        <i class="fa-solid fa-circle-check ms-1"></i>
+                                    {% endif %}
+                                </button>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <!-- All Other Cities Grid -->
+                {% if other_cities %}
+                <div id="otherCitiesSection">
+                    <h6 class="text-secondary text-uppercase fw-bold small mb-3 tracking-wide">
+                        <i class="fa-solid fa-city text-primary me-1"></i> Other Cities
+                    </h6>
+                    <div class="row row-cols-2 row-cols-sm-3 row-cols-md-4 g-2" id="allCitiesGrid">
+                        {% for ocity in other_cities %}
+                            <div class="col city-item" data-city-name="{{ ocity.name|lower }}" data-city-id="{{ ocity.id }}">
+                                <button type="button" class="btn w-100 text-start d-flex align-items-center justify-content-between p-2 rounded-3 city-select-btn {% if current_city_id == ocity.id %}btn-accent{% else %}btn-outline-secondary text-light{% endif %}"
+                                        data-city-id="{{ ocity.id }}" data-city-name="{{ ocity.name }}">
+                                    <span class="text-truncate">{{ ocity.name }}</span>
+                                    {% if current_city_id == ocity.id %}
+                                        <i class="fa-solid fa-circle-check ms-1"></i>
+                                    {% endif %}
+                                </button>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- No Matching Cities Search State -->
+                <div id="noCityMatchState" class="text-center py-4 d-none text-secondary">
+                    <i class="fa-solid fa-map-location-dot fs-1 mb-2 d-block"></i>
+                    <p class="mb-0">No cities found matching your search.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

@@ -64,19 +64,39 @@
     </div>
     {% endif %}
 
-    <!-- Now Playing Section -->
+    <!-- Now Playing Section (Location-Aware BookMyShow Style) -->
     {% if now_playing %}
-    <div class="d-flex justify-content-between align-items-center mb-3">
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mb-3">
         <div>
-            <h3 class="fw-bold mb-0 text-white">
-                <i class="fa-solid fa-play-circle text-danger me-2"></i> Now Playing in Theaters
+            <h3 class="fw-bold mb-0 text-white d-flex align-items-center gap-2">
+                <i class="fa-solid fa-play-circle text-danger"></i> 
+                <span>Now Playing in <span class="text-danger">{{ current_city.name|default:"Theaters" }}</span></span>
             </h3>
-            <p class="text-secondary small mb-0">Current blockbuster screenings and live showtimes</p>
+            <p class="text-secondary small mb-0">Active screenings, regional releases, and showtimes near you</p>
         </div>
-        <a href="{% url 'movies:discovery' %}?category=now_playing" class="text-danger text-decoration-none fw-semibold">
-            See All <i class="fa-solid fa-arrow-right ms-1"></i>
-        </a>
+        <div class="d-flex align-items-center gap-2">
+            <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill text-white-80 small px-3 py-1" data-bs-toggle="modal" data-bs-target="#locationModal">
+                <i class="fa-solid fa-location-dot text-danger me-1"></i> {{ current_city.name|default:"Change City" }}
+            </button>
+            <a href="{% url 'movies:discovery' %}?city={{ current_city_id }}&category=now_playing" class="btn btn-danger btn-sm rounded-pill px-3 py-1 fw-semibold text-white">
+                See All <i class="fa-solid fa-arrow-right ms-1"></i>
+            </a>
+        </div>
     </div>
+
+    <!-- Available Languages in Current City Quick Filter Pills -->
+    {% if city_languages %}
+    <div class="d-flex flex-wrap gap-2 mb-3">
+        <a href="{% url 'movies:discovery' %}?city={{ current_city_id }}" class="badge bg-secondary bg-opacity-25 text-white-80 text-decoration-none px-3 py-2 rounded-pill border border-secondary border-opacity-25">
+            All Languages
+        </a>
+        {% for lang in city_languages %}
+            <a href="{% url 'movies:discovery' %}?city={{ current_city_id }}&language={{ lang.id }}" class="badge bg-dark text-white-80 text-decoration-none px-3 py-2 rounded-pill border border-secondary border-opacity-25 hover-accent">
+                {{ lang.name }}
+            </a>
+        {% endfor %}
+    </div>
+    {% endif %}
 
     <div class="row row-cols-2 row-cols-md-3 row-cols-lg-6 g-3 mb-5">
         {% for movie in now_playing %}
@@ -91,11 +111,11 @@
     <div class="d-flex justify-content-between align-items-center mb-3">
         <div>
             <h3 class="fw-bold mb-0 text-white">
-                <i class="fa-solid fa-wand-magic-sparkles text-danger me-2"></i> Recommended For You
+                <i class="fa-solid fa-wand-magic-sparkles text-danger me-2"></i> Recommended in {{ current_city.name|default:"Your City" }}
             </h3>
-            <p class="text-secondary small mb-0">Tailored based on your booking history & viewing activity</p>
+            <p class="text-secondary small mb-0">Personalized by location, regional languages, and your preferences</p>
         </div>
-        <a href="{% url 'movies:discovery' %}" class="text-danger text-decoration-none fw-semibold">
+        <a href="{% url 'movies:discovery' %}?city={{ current_city_id }}" class="text-danger text-decoration-none fw-semibold">
             Explore All <i class="fa-solid fa-arrow-right ms-1"></i>
         </a>
     </div>

@@ -331,16 +331,86 @@ body {
     padding: 1.5rem;
 }
 
-.form-select, .form-control {
+/* --------------------------------------------------------------------------
+   High-Contrast Dropdown & Form Controls (Fixing Option Readability)
+   -------------------------------------------------------------------------- */
+.form-select {
+    background-color: #1e293b !important;
+    color: #f8fafc !important;
+    border: 1px solid rgba(255, 255, 255, 0.18) !important;
+    border-radius: 10px;
+    font-weight: 500;
+    cursor: pointer;
+}
+
+[data-bs-theme="light"] .form-select {
+    background-color: #ffffff !important;
+    color: #0f172a !important;
+    border: 1px solid rgba(0, 0, 0, 0.18) !important;
+}
+
+.form-control {
     background-color: var(--bg-input) !important;
     border: 1px solid var(--border-color) !important;
     color: var(--text-primary) !important;
     border-radius: 10px;
 }
 
+/* Explicit native option colors across Windows / Chrome / Edge / Firefox */
+.form-select option {
+    background-color: #0f172a !important;
+    color: #f8fafc !important;
+    padding: 8px 12px;
+}
+
+[data-bs-theme="light"] .form-select option {
+    background-color: #ffffff !important;
+    color: #0f172a !important;
+}
+
+.form-select:hover, .form-control:hover {
+    border-color: rgba(239, 68, 68, 0.5) !important;
+}
+
 .form-select:focus, .form-control:focus {
     border-color: var(--accent-red) !important;
     box-shadow: 0 0 0 0.25rem rgba(225, 29, 72, 0.2) !important;
+}
+
+.form-select option:checked {
+    background-color: var(--accent-red) !important;
+    color: #ffffff !important;
+}
+
+/* Location Selector Navbar & Modal Tokens */
+.city-location-trigger {
+    cursor: pointer;
+    transition: all 0.2s ease;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: #f8fafc;
+}
+
+.city-location-trigger:hover {
+    background: rgba(255, 255, 255, 0.16);
+    border-color: var(--accent-red);
+    color: #ffffff;
+    transform: translateY(-1px);
+}
+
+.city-select-btn {
+    transition: all 0.15s ease;
+}
+
+.city-select-btn:hover:not(.btn-accent) {
+    border-color: var(--accent-red) !important;
+    color: var(--accent-red) !important;
+    background: rgba(239, 68, 68, 0.1) !important;
+}
+
+.hover-accent:hover {
+    border-color: var(--accent-red) !important;
+    color: var(--accent-red) !important;
 }
 
 .genre-tag {

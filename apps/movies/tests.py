@@ -308,3 +308,118 @@ class MovieDiscoverySystemTests(TestCase):
         self.assertEqual(res_no.context['trailer_youtube_key'], '')
         self.assertContains(res_no, 'Trailer Unavailable')
 
+    def test_location_context_and_set_api(self):
+        """Test persistent location selection API and context processor."""
+        hyd_city = City.objects.create(name='Hyderabad', state='Telangana', slug='hyderabad')
+        chn_city = City.objects.create(name='Chennai', state='Tamil Nadu', slug='chennai')
+
+        # 1. Test set_location_api
+        res = self.client.post(reverse('api_set_location'), {'city_id': hyd_city.id})
+        self.assertEqual(res.status_code, 200)
+        data = res.json()
+        self.assertEqual(data['status'], 'success')
+        self.assertEqual(data['city']['name'], 'Hyderabad')
+
+        # 2. Verify session persistence on HomeView
+        home_res = self.client.get(reverse('movies:home'))
+        self.assertEqual(home_res.status_code, 200)
+        self.assertEqual(home_res.context['current_city'].id, hyd_city.id)
+
+        # 3. Change location to Chennai
+        res2 = self.client.post(reverse('api_set_location'), {'city_id': chn_city.id})
+        self.assertEqual(res2.status_code, 200)
+        home_res2 = self.client.get(reverse('movies:home'))
+        self.assertEqual(home_res2.context['current_city'].id, chn_city.id)
+
+    def test_geolocation_detect_api(self):
+        """Test GPS coordinate Haversine nearest city resolution."""
+        hyd = City.objects.create(name='Hyderabad', state='Telangana', slug='hyderabad')
+        chn = City.objects.create(name='Chennai', state='Tamil Nadu', slug='chennai')
+
+        # Coordinates near Hyderabad (Secunderabad coords)
+        res_hyd = self.client.get(reverse('api_detect_location') + '?lat=17.44&lng=78.50')
+        self.assertEqual(res_hyd.status_code, 200)
+        data_hyd = res_hyd.json()
+        self.assertEqual(data_hyd['status'], 'success')
+        self.assertEqual(data_hyd['city']['id'], hyd.id)
+
+        # Coordinates near Chennai
+        res_chn = self.client.get(reverse('api_detect_location') + '?lat=13.05&lng=80.25')
+        self.assertEqual(res_chn.status_code, 200)
+        data_chn = res_chn.json()
+        self.assertEqual(data_chn['status'], 'success')
+        self.assertEqual(data_chn['city']['id'], chn.id)
+
+    def test_location_and_regional_language_recommendations(self):
+        """Test BookMyShow-style regional language prioritization by city."""
+        telugu_lang = Language.objects.create(name='Telugu', code='te')
+        tamil_lang = Language.objects.create(name='Tamil', code='ta')
+
+        hyd_city = City.objects.create(name='Hyderabad', state='Telangana', slug='hyderabad')
+        chn_city = City.objects.create(name='Chennai', state='Tamil Nadu', slug='chennai')
+
+        hyd_theater = Theater.objects.create(name='AMB Cinemas', city=hyd_city, address='Gachibowli')
+        chn_theater = Theater.objects.create(name='SPI Sathyam', city=chn_city, address='Royapettah')
+
+        hyd_screen = Screen.objects.create(theater=hyd_theater, name='Screen 1', total_seats=100)
+        chn_screen = Screen.objects.create(theater=chn_theater, name='Screen 1', total_seats=100)
+
+        telugu_movie = Movie.objects.create(
+            title='Telugu Blockbuster',
+            language=telugu_lang,
+            duration=150,
+            release_date=datetime.date(2025, 5, 1),
+            popularity=80,
+            rating=8.5
+        )
+        tamil_movie = Movie.objects.create(
+            title='Tamil Blockbuster',
+            language=tamil_lang,
+            duration=150,
+            release_date=datetime.date(2025, 5, 1),
+            popularity=80,
+            rating=8.5
+        )
+
+        Show.objects.create(movie=telugu_movie, screen=hyd_screen, start_time=timezone.now() + datetime.timedelta(days=1), base_price=Decimal('200'), available_seats=80)
+        Show.objects.create(movie=tamil_movie, screen=chn_screen, start_time=timezone.now() + datetime.timedelta(days=1), base_price=Decimal('200'), available_seats=80)
+
+        # In Hyderabad: Telugu movie must rank higher than Tamil movie
+        hyd_recs = get_personalized_recommendations(city=hyd_city, limit=4)
+        self.assertIn(telugu_movie, hyd_recs)
+        telugu_idx = hyd_recs.index(telugu_movie)
+        if tamil_movie in hyd_recs:
+            tamil_idx = hyd_recs.index(tamil_movie)
+            self.assertLess(telugu_idx, tamil_idx)
+
+        # In Chennai: Tamil movie must rank higher than Telugu movie
+        chn_recs = get_personalized_recommendations(city=chn_city, limit=4)
+        self.assertIn(tamil_movie, chn_recs)
+        tamil_idx2 = chn_recs.index(tamil_movie)
+        if telugu_movie in chn_recs:
+            telugu_idx2 = chn_recs.index(telugu_movie)
+            self.assertLess(tamil_idx2, telugu_idx2)
+
+    def test_coupled_theaters_by_city_api(self):
+        """Test API returning theaters filtered by city for dynamic dropdown cascading."""
+        hyd_city = City.objects.create(name='Hyderabad', state='Telangana')
+        t1 = Theater.objects.create(name='Prasads Multiplex', city=hyd_city, address='Necklace Rd')
+        
+        res = self.client.get(reverse('api_theaters_by_city') + f'?city_id={hyd_city.id}')
+        self.assertEqual(res.status_code, 200)
+        data = res.json()
+        self.assertEqual(data['status'], 'success')
+        theater_names = [t['name'] for t in data['theaters']]
+        self.assertIn('Prasads Multiplex', theater_names)
+
+    def test_explore_empty_state_messaging(self):
+        """Test informative empty state when city and language combination yields zero shows."""
+        french_lang = Language.objects.create(name='French', code='fr')
+        hyd_city = City.objects.create(name='Hyderabad', state='Telangana')
+
+        res = self.client.get(reverse('movies:discovery') + f'?city={hyd_city.id}&language={french_lang.id}')
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.context['movie_count'], 0)
+        self.assertContains(res, 'No French Movies in Hyderabad')
+
+

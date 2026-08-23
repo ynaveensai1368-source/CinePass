@@ -67,10 +67,24 @@
                 {% empty %}
                     <div class="col-12 text-center py-5">
                         <div class="p-5 border border-secondary border-opacity-25 rounded-4 bg-body-tertiary shadow-sm">
-                            <i class="fa-solid fa-film text-secondary display-1 mb-3"></i>
-                            <h4 class="fw-bold">No Movies Found</h4>
-                            <p class="text-secondary">Try adjusting your filters or search keywords to find matching releases.</p>
-                            <a href="{% url 'movies:discovery' %}" class="btn btn-accent mt-2">Reset All Filters</a>
+                            <i class="fa-solid fa-film text-danger display-3 mb-3"></i>
+                            <h4 class="fw-bold mb-2">{{ empty_title|default:"No Movies Found" }}</h4>
+                            <p class="text-secondary mb-4 mx-auto" style="max-width: 500px;">
+                                {{ empty_message|default:"Try adjusting your filters or search keywords to find matching releases." }}
+                            </p>
+                            <div class="d-flex flex-wrap justify-content-center gap-2">
+                                {% if current_city %}
+                                    <a href="{% url 'movies:discovery' %}?city={{ current_city_id }}" class="btn btn-accent btn-sm px-3 py-2">
+                                        <i class="fa-solid fa-clapperboard me-1"></i> View All Movies in {{ current_city.name }}
+                                    </a>
+                                    <button type="button" class="btn btn-outline-light btn-sm px-3 py-2" data-bs-toggle="modal" data-bs-target="#locationModal">
+                                        <i class="fa-solid fa-location-dot text-danger me-1"></i> Change City
+                                    </button>
+                                {% endif %}
+                                <a href="{% url 'movies:discovery' %}" class="btn btn-outline-secondary btn-sm px-3 py-2">
+                                    <i class="fa-solid fa-rotate-left me-1"></i> Reset All Filters
+                                </a>
+                            </div>
                         </div>
                     </div>
                 {% endfor %}

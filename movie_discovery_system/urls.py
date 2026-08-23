@@ -9,7 +9,13 @@ from django.conf import settings
 from django.conf.urls.static import static
 
 from django.http import JsonResponse, HttpResponse
-from core.views import health_check
+from core.views import (
+    health_check,
+    set_location_api,
+    detect_location_api,
+    get_theaters_by_city_api,
+    get_city_languages_api,
+)
 
 def favicon_view(request):
     """Responds to browser favicon requests."""
@@ -24,6 +30,10 @@ urlpatterns = [
     path('.well-known/appspecific/com.chrome.devtools.json', chrome_devtools_json),
     path('admin/', admin.site.urls),
     path('api/health/', health_check, name='health_check'),
+    path('api/location/set/', set_location_api, name='api_set_location'),
+    path('api/location/detect/', detect_location_api, name='api_detect_location'),
+    path('api/theaters-by-city/', get_theaters_by_city_api, name='api_theaters_by_city'),
+    path('api/languages-by-city/', get_city_languages_api, name='api_languages_by_city'),
 
     path('', include('movies.urls', namespace='movies')),
     path('accounts/', include('accounts.urls', namespace='accounts')),

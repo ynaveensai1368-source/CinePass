@@ -18,7 +18,29 @@ class TheaterListView(ListView):
     context_object_name = 'theaters'
 
     def get_queryset(self):
-        return Theater.objects.filter(is_active=True).select_related('city').prefetch_related('screens')
+        city_param = self.request.GET.get('city')
+        qs = Theater.objects.filter(is_active=True).select_related('city').prefetch_related('screens')
+        
+        if city_param:
+            if str(city_param).isdigit():
+                qs = qs.filter(city_id=int(city_param))
+            else:
+                qs = qs.filter(city__slug=city_param)
+        else:
+            session_city_id = self.request.session.get('selected_city_id')
+            if session_city_id:
+                # Prioritize theaters in active session city first
+                qs = qs.filter(city_id=session_city_id)
+                if not qs.exists():
+                    qs = Theater.objects.filter(is_active=True).select_related('city').prefetch_related('screens')
+
+        return qs.order_by('city__name', 'name')
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['cities'] = City.objects.filter(theaters__isnull=False).distinct().order_by('name')
+        context['selected_city_filter'] = self.request.GET.get('city', '')
+        return context
 
 class TheaterCreateView(StaffRequiredMixin, CreateView):
     model = Theater

@@ -5,16 +5,33 @@
 {% block content %}
 <div class="container py-4">
 
-    <div class="d-flex justify-content-between align-items-center mb-4 pb-3 border-bottom border-secondary border-opacity-25">
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mb-4 pb-3 border-bottom border-secondary border-opacity-25">
         <div>
             <h2 class="text-white fw-bold mb-1">
                 <i class="fa-solid fa-building-user text-danger me-2"></i> Cinema Theaters
             </h2>
-            <p class="text-secondary mb-0">Browse theaters and screening locations in your city</p>
+            <p class="text-secondary mb-0">Browse theaters and screening locations in {{ current_city.name|default:"your city" }}</p>
         </div>
-        {% if user.is_staff %}
-            <a href="{% url 'theaters:create' %}" class="btn btn-accent btn-sm">+ Add New Theater</a>
-        {% endif %}
+        <div class="d-flex align-items-center gap-2">
+            <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill text-white" data-bs-toggle="modal" data-bs-target="#locationModal">
+                <i class="fa-solid fa-location-dot text-danger me-1"></i> Change City ({{ current_city.name|default:"All" }})
+            </button>
+            {% if user.is_staff %}
+                <a href="{% url 'theaters:create' %}" class="btn btn-accent btn-sm">+ Add New Theater</a>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Quick City Filter Pills -->
+    <div class="d-flex flex-wrap gap-2 mb-4">
+        <a href="{% url 'theaters:list' %}" class="badge {% if not selected_city_filter %}bg-danger text-white{% else %}bg-secondary bg-opacity-25 text-white-80{% endif %} text-decoration-none px-3 py-2 rounded-pill border border-secondary border-opacity-25">
+            Active City ({{ current_city.name }})
+        </a>
+        {% for c in cities %}
+            <a href="{% url 'theaters:list' %}?city={{ c.id }}" class="badge {% if selected_city_filter == c.id|slugify %}bg-danger text-white{% else %}bg-dark text-white-80{% endif %} text-decoration-none px-3 py-2 rounded-pill border border-secondary border-opacity-25 hover-accent">
+                {{ c.name }}
+            </a>
+        {% endfor %}
     </div>
 
     <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">

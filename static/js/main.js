@@ -342,6 +342,206 @@
             });
         }
 
+        // ======================================================================
+        // Interactive City / Location Selector & Geolocation Auto-Detection
+        // ======================================================================
+        const initLocationSelector = () => {
+            const locationModalEl = document.getElementById('locationModal');
+            const detectBtn = document.getElementById('detectLocationBtn');
+            const detectIcon = document.getElementById('detectLocationIcon');
+            const detectText = document.getElementById('detectLocationText');
+            const alertBanner = document.getElementById('locationAlertBanner');
+            const alertText = document.getElementById('locationAlertText');
+            const searchInput = document.getElementById('citySearchInput');
+            const noMatchState = document.getElementById('noCityMatchState');
+
+            const showAlert = (msg, type = 'info') => {
+                if (!alertBanner || !alertText) return;
+                alertBanner.className = `alert alert-${type} py-2 px-3 mb-3 small d-flex align-items-center gap-2`;
+                alertText.textContent = msg;
+                alertBanner.classList.remove('d-none');
+            };
+
+            const hideAlert = () => {
+                if (alertBanner) alertBanner.classList.add('d-none');
+            };
+
+            // 1. City Selection Action (1-click from grid/list)
+            document.addEventListener('click', async (e) => {
+                const btn = e.target.closest('.city-select-btn');
+                if (!btn) return;
+
+                const cityId = btn.getAttribute('data-city-id');
+                const cityName = btn.getAttribute('data-city-name');
+                if (!cityId) return;
+
+                btn.disabled = true;
+                btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin me-1"></i> ${cityName}`;
+
+                try {
+                    const res = await fetch(`/api/location/set/?city_id=${encodeURIComponent(cityId)}`, {
+                        method: 'POST',
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                    });
+                    const data = await res.json();
+                    if (data.status === 'success') {
+                        // Update active city labels
+                        document.querySelectorAll('.active-city-label').forEach(el => el.textContent = data.city.name);
+                        
+                        // Close modal if open
+                        if (locationModalEl && window.bootstrap && bootstrap.Modal) {
+                            const modal = bootstrap.Modal.getInstance(locationModalEl);
+                            if (modal) modal.hide();
+                        }
+                        // Refresh page or current explore view to apply new location
+                        const currentUrl = new URL(window.location.href);
+                        if (currentUrl.searchParams.has('city')) {
+                            currentUrl.searchParams.set('city', data.city.id);
+                            window.location.href = currentUrl.toString();
+                        } else {
+                            window.location.reload();
+                        }
+                    } else {
+                        showAlert(data.message || 'Unable to update location.', 'warning');
+                        btn.disabled = false;
+                        btn.textContent = cityName;
+                    }
+                } catch (err) {
+                    console.error('Error setting location:', err);
+                    window.location.reload();
+                }
+            });
+
+            // 2. "Detect My Location" via Browser Geolocation API
+            if (detectBtn) {
+                detectBtn.addEventListener('click', () => {
+                    if (!navigator.geolocation) {
+                        showAlert('Geolocation is not supported by your browser. Please pick your city manually.', 'warning');
+                        return;
+                    }
+
+                    detectBtn.disabled = true;
+                    if (detectIcon) detectIcon.className = 'fa-solid fa-spinner fa-spin text-danger';
+                    if (detectText) detectText.textContent = 'Detecting GPS...';
+                    showAlert('Locating your nearest cinema hub...', 'info');
+
+                    navigator.geolocation.getCurrentPosition(
+                        async (position) => {
+                            const lat = position.coords.latitude;
+                            const lng = position.coords.longitude;
+
+                            try {
+                                const res = await fetch(`/api/location/detect/?lat=${lat}&lng=${lng}`, {
+                                    method: 'POST',
+                                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                                });
+                                const data = await res.json();
+                                if (data.status === 'success') {
+                                    showAlert(`Found nearest city: ${data.city.name} (${data.city.distance_km || 0} km away). Applying...`, 'success');
+                                    setTimeout(() => {
+                                        if (locationModalEl && window.bootstrap && bootstrap.Modal) {
+                                            const modal = bootstrap.Modal.getInstance(locationModalEl);
+                                            if (modal) modal.hide();
+                                        }
+                                        window.location.reload();
+                                    }, 600);
+                                } else {
+                                    showAlert(data.message || 'Could not find closest city. Please choose from the list.', 'warning');
+                                    resetDetectBtn();
+                                }
+                            } catch (err) {
+                                showAlert('Failed to resolve location. Please select your city manually.', 'danger');
+                                resetDetectBtn();
+                            }
+                        },
+                        (error) => {
+                            let msg = 'Location access denied. Please select your city manually from the list.';
+                            if (error.code === error.POSITION_UNAVAILABLE) {
+                                msg = 'Location information is currently unavailable. Please pick your city below.';
+                            } else if (error.code === error.TIMEOUT) {
+                                msg = 'Location request timed out. Please select your city manually.';
+                            }
+                            showAlert(msg, 'warning');
+                            resetDetectBtn();
+                        },
+                        { timeout: 10000, maximumAge: 60000 }
+                    );
+                });
+
+                const resetDetectBtn = () => {
+                    detectBtn.disabled = false;
+                    if (detectIcon) detectIcon.className = 'fa-solid fa-crosshairs text-danger';
+                    if (detectText) detectText.textContent = 'Detect My Location';
+                };
+            }
+
+            // 3. Real-time City Search Filter
+            if (searchInput) {
+                searchInput.addEventListener('input', () => {
+                    const query = searchInput.value.toLowerCase().trim();
+                    const cityItems = document.querySelectorAll('.city-item');
+                    let visibleCount = 0;
+
+                    cityItems.forEach(item => {
+                        const cityName = item.getAttribute('data-city-name') || '';
+                        if (!query || cityName.includes(query)) {
+                            item.classList.remove('d-none');
+                            visibleCount++;
+                        } else {
+                            item.classList.add('d-none');
+                        }
+                    });
+
+                    if (noMatchState) {
+                        if (visibleCount === 0) {
+                            noMatchState.classList.remove('d-none');
+                        } else {
+                            noMatchState.classList.add('d-none');
+                        }
+                    }
+                });
+            }
+        };
+
+        initLocationSelector();
+
+        // ======================================================================
+        // Explore Page Coupled Filters (City -> Theaters -> Languages)
+        // ======================================================================
+        const initExploreFiltersCoupling = () => {
+            const citySelect = document.getElementById('filterCitySelect');
+            const theaterSelect = document.getElementById('filterTheaterSelect');
+
+            if (!citySelect || !theaterSelect) return;
+
+            citySelect.addEventListener('change', async () => {
+                const selectedCityId = citySelect.value;
+                if (!selectedCityId) {
+                    return;
+                }
+
+                try {
+                    const res = await fetch(`/api/theaters-by-city/?city_id=${encodeURIComponent(selectedCityId)}`);
+                    const data = await res.json();
+                    if (data.status === 'success' && data.theaters) {
+                        // Reset and rebuild theater options
+                        theaterSelect.innerHTML = '<option value="">All Theaters</option>';
+                        data.theaters.forEach(t => {
+                            const opt = document.createElement('option');
+                            opt.value = t.id;
+                            opt.textContent = `${t.name}`;
+                            theaterSelect.appendChild(opt);
+                        });
+                    }
+                } catch (err) {
+                    console.error('Error fetching theaters for city:', err);
+                }
+            });
+        };
+
+        initExploreFiltersCoupling();
+
     });
 })();
+
 

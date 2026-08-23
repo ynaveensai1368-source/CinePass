@@ -1,13 +1,27 @@
 <nav class="navbar navbar-expand-lg navbar-custom sticky-top">
     <div class="container">
         <!-- Brand Logo (Left) -->
-        <a class="navbar-brand d-flex align-items-center me-4" href="{% url 'movies:home' %}">
+        <a class="navbar-brand d-flex align-items-center me-3" href="{% url 'movies:home' %}">
             <i class="fa-solid fa-film me-2 fs-3 text-danger"></i>
             <span class="fw-extrabold text-white">Cine<span class="text-danger">Pass</span></span>
         </a>
 
+        <!-- Desktop Location Selector (BookMyShow Style) -->
+        <div class="d-none d-lg-block me-3">
+            <button type="button" class="btn btn-dark-subtle border-secondary border-opacity-25 rounded-pill text-white d-flex align-items-center gap-2 px-3 py-1 shadow-sm city-location-trigger" data-bs-toggle="modal" data-bs-target="#locationModal" title="Change Location">
+                <i class="fa-solid fa-location-dot text-danger"></i>
+                <span class="fw-semibold active-city-label">{{ current_city.name|default:"Hyderabad" }}</span>
+                <i class="fa-solid fa-chevron-down text-secondary small"></i>
+            </button>
+        </div>
+
         <!-- Mobile Controls -->
         <div class="d-flex align-items-center gap-2 d-lg-none ms-auto me-2">
+            <button type="button" class="btn btn-sm btn-dark-subtle border-secondary border-opacity-25 rounded-pill text-white d-flex align-items-center gap-1 px-2 py-1" data-bs-toggle="modal" data-bs-target="#locationModal" title="Change City">
+                <i class="fa-solid fa-location-dot text-danger small"></i>
+                <span class="fw-semibold small active-city-label">{{ current_city.name|default:"Hyderabad" }}</span>
+                <i class="fa-solid fa-chevron-down text-secondary small" style="font-size: 0.7rem;"></i>
+            </button>
             <button type="button" class="theme-toggle-btn" id="themeToggleBtnMobile" aria-label="Toggle theme">
                 <i class="fa-solid fa-moon text-info" id="themeIconMobile"></i>
             </button>
