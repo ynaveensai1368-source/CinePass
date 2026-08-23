@@ -115,7 +115,10 @@ def get_personalized_recommendations(user=None, session_key=None, city=None, lim
         )
 
     base_qs = Movie.objects.filter(is_active=True)\
-        .annotate(has_city_shows=Exists(city_shows_subquery))\
+        .annotate(
+            has_active_shows=Exists(city_shows_subquery),
+            has_city_shows=Exists(city_shows_subquery)
+        )\
         .select_related('language').prefetch_related('genres')
 
     if booked_movie_ids:

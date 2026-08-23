@@ -19,6 +19,14 @@ class Show(TimeStampedModel):
         related_name='shows',
         help_text="Movie scheduled for screening."
     )
+    language = models.ForeignKey(
+        'movies.Language',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='shows',
+        help_text="Screening audio/dub language for this show."
+    )
     screen = models.ForeignKey(
         'theaters.Screen',
         on_delete=models.CASCADE,
@@ -97,6 +105,17 @@ class Show(TimeStampedModel):
     @property
     def ticket_price(self):
         return self.base_price
+
+    @property
+    def show_language(self):
+        if self.language_id:
+            return self.language
+        return self.movie.language if self.movie else None
+
+    @property
+    def language_name(self):
+        lang = self.show_language
+        return lang.name if lang else 'Original'
 
 
 class SeatReservation(TimeStampedModel):

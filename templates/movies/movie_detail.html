@@ -155,18 +155,37 @@
             {% if available_cities|length > 1 %}
                 <div class="d-flex flex-wrap align-items-center gap-2 mb-4 p-3 bg-dark bg-opacity-50 rounded-3 border border-secondary border-opacity-25">
                     <span class="text-secondary small fw-semibold me-2">
-                        <i class="fa-solid fa-location-dot text-danger me-1"></i> Filter City:
+                        <i class="fa-solid fa-location-dot text-danger me-1"></i> Selected City:
                     </span>
-                    <a href="?date={{ selected_date_str }}#theaterShowtimesSection"
-                       class="btn btn-sm {% if not selected_city %}btn-danger text-white{% else %}btn-outline-secondary text-slate-300{% endif %} rounded-pill px-3">
-                        All Cities
-                    </a>
                     {% for city in available_cities %}
-                        <a href="?date={{ selected_date_str }}&city={{ city.id }}#theaterShowtimesSection"
-                           class="btn btn-sm {% if selected_city == city.id|stringformat:'s' or selected_city == city.name %}btn-danger text-white{% else %}btn-outline-secondary text-slate-300{% endif %} rounded-pill px-3">
+                        <a href="?{% if selected_date_str %}date={{ selected_date_str }}&{% endif %}{% if selected_language %}language={{ selected_language }}&{% endif %}city={{ city.id }}#theaterShowtimesSection"
+                           class="btn btn-sm {% if selected_city == city.id|stringformat:'s' or selected_city == city.name %}btn-danger text-white shadow{% else %}btn-outline-secondary text-slate-300{% endif %} rounded-pill px-3">
                             {{ city.name }}
                         </a>
                     {% endfor %}
+                </div>
+            {% endif %}
+
+            <!-- Language Selector Pills (BookMyShow Multi-Language Selection) -->
+            {% if available_languages|length > 1 %}
+                <div class="mb-4 p-3 bg-dark bg-opacity-30 rounded-3 border border-secondary border-opacity-25">
+                    <div class="d-flex align-items-center gap-2 mb-2">
+                        <span class="text-secondary text-xs text-uppercase fw-bold tracking-wider">
+                            <i class="fa-solid fa-language me-1 text-danger"></i> Select Audio / Dub Language:
+                        </span>
+                    </div>
+                    <div class="d-flex flex-wrap gap-2">
+                        <a href="?{% if selected_date_str %}date={{ selected_date_str }}&{% endif %}{% if selected_city %}city={{ selected_city }}{% endif %}#theaterShowtimesSection"
+                           class="btn btn-sm {% if not selected_language %}btn-danger text-white shadow{% else %}btn-outline-secondary bg-dark text-slate-300 border-secondary border-opacity-50{% endif %} rounded-pill px-3 py-1.5 fw-semibold">
+                            All Languages
+                        </a>
+                        {% for lang in available_languages %}
+                            <a href="?{% if selected_date_str %}date={{ selected_date_str }}&{% endif %}{% if selected_city %}city={{ selected_city }}&{% endif %}language={{ lang.id }}#theaterShowtimesSection"
+                               class="btn btn-sm {% if selected_language == lang.id|stringformat:'s' or selected_language == lang.code %}btn-danger text-white shadow{% else %}btn-outline-secondary bg-dark text-slate-300 border-secondary border-opacity-50{% endif %} rounded-pill px-3 py-1.5 fw-semibold">
+                                {{ lang.name }}
+                            </a>
+                        {% endfor %}
+                    </div>
                 </div>
             {% endif %}
 
@@ -207,9 +226,14 @@
                                         <!-- Showtimes Chips -->
                                         <div class="d-flex flex-wrap gap-3">
                                             {% for show in scr_group.shows %}
-                                                <div class="showtime-card p-3 rounded-3 bg-dark border border-secondary border-opacity-50 text-center d-flex flex-column justify-content-between shadow-sm" style="min-width: 155px;">
+                                                <div class="showtime-card p-3 rounded-3 bg-dark border border-secondary border-opacity-50 text-center d-flex flex-column justify-content-between shadow-sm" style="min-width: 160px;">
                                                     <div class="fw-bold text-white fs-6 mb-1">
                                                         <i class="fa-regular fa-clock me-1 text-danger"></i>{{ show.start_time|date:"h:i A" }}
+                                                    </div>
+                                                    <div class="mb-1">
+                                                        <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-0.5 rounded-pill text-xs fw-semibold">
+                                                            {{ show.language_name }} • {{ scr_group.screen.screen_type }}
+                                                        </span>
                                                     </div>
                                                     <div class="d-flex justify-content-center align-items-center gap-1 mb-2 text-xs">
                                                         <span class="text-success fw-bold">₹{{ show.base_price }}</span>
@@ -224,7 +248,7 @@
                                                     </div>
 
                                                     {% if show.is_available %}
-                                                        <a href="{% url 'shows:seat_selection' show.id %}" class="btn btn-danger btn-sm py-1.5 px-3 fw-semibold rounded-2 w-100">
+                                                        <a href="{% url 'shows:seat_selection' show.id %}" class="btn btn-danger btn-sm py-1.5 px-3 fw-semibold rounded-2 w-100 shadow-sm">
                                                             Select Seats <i class="fa-solid fa-chevron-right ms-1 text-xs"></i>
                                                         </a>
                                                     {% else %}
@@ -243,8 +267,8 @@
                 <div class="text-center py-5 text-secondary bg-dark bg-opacity-25 rounded-4 border border-secondary border-opacity-25">
                     <i class="fa-solid fa-calendar-xmark display-4 mb-2 text-secondary"></i>
                     <h5 class="text-white mt-2 mb-1">No Showtimes Found</h5>
-                    <p class="mb-3 small">There are no showtimes available for {{ selected_date|date:"M d, Y" }}{% if selected_city %} in the selected city{% endif %}.</p>
-                    <a href="?#theaterShowtimesSection" class="btn btn-outline-danger btn-sm">View All Available Dates</a>
+                    <p class="mb-3 small">There are no showtimes available for {{ selected_date|date:"M d, Y" }}{% if selected_language_obj %} in {{ selected_language_obj.name }}{% endif %}{% if active_city_obj %} in {{ active_city_obj.name }}{% endif %}.</p>
+                    <a href="?#theaterShowtimesSection" class="btn btn-outline-danger btn-sm">View All Available Showtimes</a>
                 </div>
             {% endif %}
 

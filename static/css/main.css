@@ -7,6 +7,7 @@
    Theme Tokens (Default Dark)
    -------------------------------------------------------------------------- */
 :root, [data-bs-theme="dark"] {
+    color-scheme: dark;
     --bg-main: #0f172a;
     --bg-card: #1e293b;
     --bg-card-hover: #334155;
@@ -25,6 +26,7 @@
 }
 
 [data-bs-theme="light"] {
+    color-scheme: light;
     --bg-main: #f1f5f9;
     --bg-card: #ffffff;
     --bg-card-hover: #f8fafc;
@@ -329,55 +331,59 @@ body {
     border: 1px solid var(--border-color) !important;
     border-radius: 16px;
     padding: 1.5rem;
+    overflow: visible;
 }
 
 /* --------------------------------------------------------------------------
    High-Contrast Dropdown & Form Controls (Fixing Option Readability)
    -------------------------------------------------------------------------- */
-.form-select {
+.form-select, select {
+    color-scheme: dark;
     background-color: #1e293b !important;
     color: #f8fafc !important;
-    border: 1px solid rgba(255, 255, 255, 0.18) !important;
+    border: 1px solid rgba(255, 255, 255, 0.22) !important;
     border-radius: 10px;
     font-weight: 500;
     cursor: pointer;
 }
 
-[data-bs-theme="light"] .form-select {
+[data-bs-theme="light"] .form-select, [data-bs-theme="light"] select {
+    color-scheme: light;
     background-color: #ffffff !important;
     color: #0f172a !important;
-    border: 1px solid rgba(0, 0, 0, 0.18) !important;
+    border: 1px solid rgba(0, 0, 0, 0.22) !important;
 }
 
-.form-control {
+.form-control, input, textarea {
     background-color: var(--bg-input) !important;
     border: 1px solid var(--border-color) !important;
     color: var(--text-primary) !important;
     border-radius: 10px;
 }
 
-/* Explicit native option colors across Windows / Chrome / Edge / Firefox */
-.form-select option {
+/* Explicit native option colors across Windows / Chrome / Edge / Brave / Firefox */
+.form-select option, select option {
     background-color: #0f172a !important;
     color: #f8fafc !important;
-    padding: 8px 12px;
+    padding: 10px 14px;
+    font-size: 0.95rem;
 }
 
-[data-bs-theme="light"] .form-select option {
+[data-bs-theme="light"] .form-select option, [data-bs-theme="light"] select option {
     background-color: #ffffff !important;
     color: #0f172a !important;
 }
 
-.form-select:hover, .form-control:hover {
-    border-color: rgba(239, 68, 68, 0.5) !important;
+.form-select:hover, select:hover, .form-control:hover {
+    border-color: rgba(239, 68, 68, 0.6) !important;
 }
 
-.form-select:focus, .form-control:focus {
+.form-select:focus, select:focus, .form-control:focus {
     border-color: var(--accent-red) !important;
-    box-shadow: 0 0 0 0.25rem rgba(225, 29, 72, 0.2) !important;
+    box-shadow: 0 0 0 0.25rem rgba(239, 68, 68, 0.25) !important;
 }
 
-.form-select option:checked {
+.form-select option:checked, select option:checked {
     background-color: var(--accent-red) !important;
     color: #ffffff !important;
 }

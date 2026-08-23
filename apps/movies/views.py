@@ -95,13 +95,15 @@ class HomeView(TemplateView):
                 movie=OuterRef('pk'),
                 screen__theater__city=current_city,
                 start_time__gte=now,
-                status='OPEN'
+                status='OPEN',
+                available_seats__gt=0
             )
         else:
             city_shows_subquery = Show.objects.filter(
                 movie=OuterRef('pk'),
                 start_time__gte=now,
-                status='OPEN'
+                status='OPEN',
+                available_seats__gt=0
             )
 
         # Base optimized queryset
@@ -121,22 +123,27 @@ class HomeView(TemplateView):
                 has_active_shows=True
             ).annotate(
                 lang_priority=lang_priority_case
-            ).order_by('-lang_priority', '-release_date', '-popularity')[:8]
+            ).order_by('-lang_priority', '-release_date', '-popularity')[:12]
 
-            # If city has fewer than 6 active theatrical shows, supplement with general theatrical releases
             now_playing_list = list(now_playing_city_qs)
-            if len(now_playing_list) < 6:
-                existing_ids = {m.id for m in now_playing_list}
-                supplemental_qs = base_movies.filter(
-                    Q(category='now_playing') | Q(release_date__gte=today - datetime.timedelta(days=90))
-                ).exclude(id__in=existing_ids).annotate(
-                    lang_priority=lang_priority_case
-                ).order_by('-lang_priority', '-release_date', '-popularity')[:(8 - len(now_playing_list))]
-                now_playing_list.extend(list(supplemental_qs))
+            # If city has no active theatrical shows, fallback to active shows in any city
+            if not now_playing_list:
+                any_shows_subquery = Show.objects.filter(
+                    movie=OuterRef('pk'),
+                    start_time__gte=now,
+                    status='OPEN',
+                    available_seats__gt=0
+                )
+                fallback_qs = Movie.objects.filter(is_active=True)\
+                    .annotate(has_active_shows=Exists(any_shows_subquery))\
+                    .filter(has_active_shows=True)\
+                    .select_related('language').prefetch_related('genres')\
+                    .order_by('-release_date', '-popularity')[:8]
+                now_playing_list = list(fallback_qs)
             now_playing_qs = now_playing_list
         else:
             now_playing_qs = list(base_movies.filter(
-                Q(category='now_playing') | Q(has_active_shows=True)
+                has_active_shows=True
             ).order_by('-release_date', '-popularity')[:8])
 
         context['now_playing'] = now_playing_qs
@@ -178,16 +185,22 @@ class HomeView(TemplateView):
 
         # 8. Real Languages Available with Active Screenings in this City
         if current_city:
-            city_lang_ids = Show.objects.filter(
+            city_show_languages = Show.objects.filter(
                 screen__theater__city=current_city,
                 start_time__gte=now,
                 status='OPEN'
-            ).values_list('movie__language_id', flat=True).distinct()
-            context['city_languages'] = Language.objects.filter(id__in=city_lang_ids).order_by('name')
+            ).values_list('language_id', 'movie__language_id')
+            lang_ids = set()
+            for l_id, ml_id in city_show_languages:
+                if l_id:
+                    lang_ids.add(l_id)
+                elif ml_id:
+                    lang_ids.add(ml_id)
+            context['city_languages'] = Language.objects.filter(id__in=lang_ids).order_by('name')
         else:
             context['city_languages'] = Language.objects.all().order_by('name')
 
-        context['cities'] = City.objects.all()
+        context['cities'] = City.objects.filter(theaters__isnull=False).distinct().order_by('name')
         return context
 
 
@@ -206,10 +219,11 @@ class MovieDiscoveryView(ListView):
         city_param = self.request.GET.get('city')
         city_obj = None
         if city_param:
-            if str(city_param).isdigit():
-                city_obj = City.objects.filter(id=int(city_param)).first()
+            city_param_str = str(city_param).strip()
+            if city_param_str.isdigit():
+                city_obj = City.objects.filter(id=int(city_param_str)).first()
             if not city_obj:
-                city_obj = City.objects.filter(slug=city_param).first() or City.objects.filter(name__iexact=city_param).first()
+                city_obj = City.objects.filter(slug=city_param_str).first() or City.objects.filter(name__iexact=city_param_str).first()
             if city_obj:
                 self.request.session['selected_city_id'] = city_obj.id
                 self.request.session['selected_city_name'] = city_obj.name
@@ -225,63 +239,81 @@ class MovieDiscoveryView(ListView):
                 movie=OuterRef('pk'),
                 screen__theater__city=city_obj,
                 start_time__gte=now,
-                status='OPEN'
+                status='OPEN',
+                available_seats__gt=0
             )
         else:
             active_shows_subquery = Show.objects.filter(
                 movie=OuterRef('pk'),
                 start_time__gte=now,
-                status='OPEN'
+                status='OPEN',
+                available_seats__gt=0
             )
 
         qs = Movie.objects.filter(is_active=True)\
             .annotate(has_active_shows=Exists(active_shows_subquery))\
-            .select_related('language').prefetch_related('genres').annotate(
+            .select_related('language').prefetch_related('genres', 'cast_members').annotate(
                 min_price=Min('shows__base_price'),
                 max_price=Max('shows__base_price')
             )
 
-        # 2. Search Query
+        # 2. Robust Multi-Field Search Query (Title, Synopsis, Director, Tagline, Cast Members, Genres, Language)
         search_query = self.request.GET.get('q', '').strip()
         if search_query:
             qs = qs.filter(
                 Q(title__icontains=search_query) | 
                 Q(description__icontains=search_query) |
-                Q(director__icontains=search_query)
+                Q(director__icontains=search_query) |
+                Q(tagline__icontains=search_query) |
+                Q(cast_members__name__icontains=search_query) |
+                Q(genres__name__icontains=search_query) |
+                Q(language__name__icontains=search_query)
             )
 
         # 3. Multi-Facet Filters
-        category = self.request.GET.get('category')
+        category = self.request.GET.get('category', '').strip()
         if category:
-            qs = qs.filter(category=category)
+            if category == 'now_playing':
+                if city_obj:
+                    qs = qs.filter(shows__screen__theater__city=city_obj, shows__start_time__gte=now, shows__status='OPEN')
+                else:
+                    qs = qs.filter(shows__start_time__gte=now, shows__status='OPEN')
+            elif category == 'upcoming':
+                qs = qs.filter(Q(category='upcoming') | Q(release_date__gt=today))
+            else:
+                qs = qs.filter(category=category)
 
-        genre_id = self.request.GET.get('genre')
+        genre_id = self.request.GET.get('genre', '').strip()
         if genre_id:
-            qs = qs.filter(genres__id=genre_id)
+            if str(genre_id).isdigit():
+                qs = qs.filter(genres__id=int(genre_id))
+            else:
+                qs = qs.filter(Q(genres__slug=genre_id) | Q(genres__name__iexact=genre_id))
 
-        language_id = self.request.GET.get('language')
+        language_id = self.request.GET.get('language', '').strip()
         if language_id:
             if str(language_id).isdigit():
-                qs = qs.filter(language__id=int(language_id))
+                qs = qs.filter(Q(language__id=int(language_id)) | Q(shows__language_id=int(language_id)))
             else:
-                qs = qs.filter(Q(language__code=language_id) | Q(language__name__iexact=language_id))
+                qs = qs.filter(
+                    Q(language__code=language_id) | 
+                    Q(language__name__iexact=language_id) |
+                    Q(shows__language__code=language_id) |
+                    Q(shows__language__name__iexact=language_id)
+                )
 
-        theater_id = self.request.GET.get('theater')
+        theater_id = self.request.GET.get('theater', '').strip()
         if theater_id and str(theater_id).isdigit():
             qs = qs.filter(shows__screen__theater__id=int(theater_id), shows__start_time__gte=now, shows__status='OPEN')
-        elif city_param:
-            # When user explicitly filters by a specific city, show movies having shows in that city
-            if city_obj:
-                qs = qs.filter(shows__screen__theater__city=city_obj, shows__start_time__gte=now, shows__status='OPEN')
 
-        min_rating = self.request.GET.get('rating')
+        min_rating = self.request.GET.get('rating', '').strip()
         if min_rating:
             try:
                 qs = qs.filter(rating__gte=float(min_rating))
             except ValueError:
                 pass
 
-        release_year = self.request.GET.get('release_date')
+        release_year = self.request.GET.get('release_date', '').strip()
         if release_year:
             if release_year == 'upcoming':
                 qs = qs.filter(release_date__gt=today)
@@ -289,7 +321,7 @@ class MovieDiscoveryView(ListView):
                 qs = qs.filter(release_date__lte=today)
 
         # Show Timing Filter (Morning, Afternoon, Evening, Night)
-        show_time_slot = self.request.GET.get('show_time')
+        show_time_slot = self.request.GET.get('show_time', '').strip()
         if show_time_slot:
             if show_time_slot == 'morning':
                 qs = qs.filter(shows__start_time__time__gte='06:00:00', shows__start_time__time__lt='12:00:00')
@@ -306,7 +338,7 @@ class MovieDiscoveryView(ListView):
         lang_whens = [When(language__code=lcode, then=Value(100 - (i * 15))) for i, lcode in enumerate(priority_langs)]
         lang_priority_case = Case(*lang_whens, default=Value(10), output_field=IntegerField())
 
-        sort_by = self.request.GET.get('sort', 'popularity')
+        sort_by = self.request.GET.get('sort', 'popularity').strip()
         if sort_by == 'newest':
             qs = qs.order_by('-release_date', '-popularity')
         elif sort_by == 'rating':
@@ -328,10 +360,11 @@ class MovieDiscoveryView(ListView):
         active_city = context.get('current_city')
         city_param = self.request.GET.get('city')
         if city_param:
-            if str(city_param).isdigit():
-                active_city = City.objects.filter(id=int(city_param)).first()
+            city_param_str = str(city_param).strip()
+            if city_param_str.isdigit():
+                active_city = City.objects.filter(id=int(city_param_str)).first()
             if not active_city:
-                active_city = City.objects.filter(slug=city_param).first() or City.objects.filter(name__iexact=city_param).first()
+                active_city = City.objects.filter(slug=city_param_str).first() or City.objects.filter(name__iexact=city_param_str).first()
 
         context['genres'] = Genre.objects.all().order_by('name')
         context['languages'] = Language.objects.all().order_by('name')
@@ -343,16 +376,16 @@ class MovieDiscoveryView(ListView):
         else:
             context['theaters'] = Theater.objects.filter(is_active=True).select_related('city').order_by('name')
         
-        context['current_search'] = self.request.GET.get('q', '')
-        context['current_category'] = self.request.GET.get('category', '')
-        context['current_genre'] = self.request.GET.get('genre', '')
-        context['current_language'] = self.request.GET.get('language', '')
-        context['current_city'] = str(active_city.id) if active_city else self.request.GET.get('city', '')
-        context['current_theater'] = self.request.GET.get('theater', '')
-        context['current_rating'] = self.request.GET.get('rating', '')
-        context['current_sort'] = self.request.GET.get('sort', 'popularity')
-        context['current_release'] = self.request.GET.get('release_date', '')
-        context['current_show_time'] = self.request.GET.get('show_time', '')
+        context['current_search'] = self.request.GET.get('q', '').strip()
+        context['current_category'] = self.request.GET.get('category', '').strip()
+        context['current_genre'] = self.request.GET.get('genre', '').strip()
+        context['current_language'] = self.request.GET.get('language', '').strip()
+        context['current_city'] = str(active_city.id) if active_city else self.request.GET.get('city', '').strip()
+        context['current_theater'] = self.request.GET.get('theater', '').strip()
+        context['current_rating'] = self.request.GET.get('rating', '').strip()
+        context['current_sort'] = self.request.GET.get('sort', 'popularity').strip()
+        context['current_release'] = self.request.GET.get('release_date', '').strip()
+        context['current_show_time'] = self.request.GET.get('show_time', '').strip()
 
         # Empty State Message Generation
         movie_count = self.get_queryset().count()
@@ -366,7 +399,10 @@ class MovieDiscoveryView(ListView):
                 selected_lang_obj = Language.objects.filter(Q(code=context['current_language']) | Q(name__iexact=context['current_language'])).first()
 
         if movie_count == 0:
-            if selected_lang_obj and active_city:
+            if context['current_search']:
+                context['empty_title'] = f"No Results for \"{context['current_search']}\""
+                context['empty_message'] = f"We couldn't find any movies matching \"{context['current_search']}\". Try checking the spelling or searching for another title, actor, or genre."
+            elif selected_lang_obj and active_city:
                 context['empty_title'] = f"No {selected_lang_obj.name} Movies in {active_city.name}"
                 context['empty_message'] = f"There are currently no movies available in {selected_lang_obj.name} screening in {active_city.name}."
             elif active_city:
@@ -407,7 +443,7 @@ class MovieDetailView(DetailView):
                     movie.tmdb_id = found_id
                     movie.save(update_fields=['tmdb_id'])
 
-            # 2. Dynamic multi-priority trailer discovery
+            # 2. Dynamic multi-priority trailer discovery for this exact movie
             if movie.tmdb_id:
                 if not movie.has_trailer:
                     from movies.utils.tmdb import get_movie_trailer_data
@@ -427,7 +463,6 @@ class MovieDetailView(DetailView):
         context['trailer_url'] = movie.trailer_url
         context['trailer_youtube_key'] = movie.trailer_youtube_key
         context['has_trailer'] = movie.has_trailer
-
 
         # Session & User Recently Viewed Tracking (fault-tolerant)
         try:
@@ -450,18 +485,17 @@ class MovieDetailView(DetailView):
         except Exception:
             pass
 
-
-
-        # 4. Active Shows & Multi-tier Hierarchical Grouping (City -> Theater -> Screen -> Shows)
+        # 4. Location & Language-Aware Showtime Discovery
         now = timezone.now()
-        shows_qs = Show.objects.filter(
+        all_shows_qs = Show.objects.filter(
             movie=movie,
             start_time__gte=now,
             status='OPEN'
         ).select_related(
             'screen__theater__city',
             'screen__theater',
-            'screen'
+            'screen',
+            'language'
         ).order_by(
             'start_time',
             'screen__theater__city__name',
@@ -469,8 +503,40 @@ class MovieDetailView(DetailView):
             'screen__name'
         )
 
-        # Extract unique available dates with active shows
-        raw_dates = sorted(list({s.start_time.date() for s in shows_qs}))
+        # Extract all cities where this movie currently has shows
+        available_cities = sorted(
+            list({s.screen.theater.city for s in all_shows_qs}),
+            key=lambda c: c.name
+        )
+
+        # Active City Resolution: URL ?city=... > session selected city > first available city
+        selected_city_param = self.request.GET.get('city', '').strip()
+        active_city_obj = None
+        if selected_city_param:
+            if selected_city_param.isdigit():
+                active_city_obj = City.objects.filter(id=int(selected_city_param)).first()
+            else:
+                active_city_obj = City.objects.filter(name__iexact=selected_city_param).first()
+
+        if not active_city_obj:
+            session_city_id = self.request.session.get('selected_city_id')
+            if session_city_id:
+                active_city_obj = City.objects.filter(id=session_city_id).first()
+
+        if not active_city_obj and available_cities:
+            active_city_obj = available_cities[0]
+
+        # Filter shows for this city (if available)
+        city_shows = all_shows_qs
+        if active_city_obj:
+            city_shows = city_shows.filter(screen__theater__city=active_city_obj)
+            selected_city_param = str(active_city_obj.id)
+
+        # Extract available dates for shows in this city
+        raw_dates = sorted(list({s.start_time.date() for s in city_shows}))
+        if not raw_dates and all_shows_qs.exists():
+            raw_dates = sorted(list({s.start_time.date() for s in all_shows_qs}))
+
         today = now.date()
         tomorrow = today + datetime.timedelta(days=1)
 
@@ -492,7 +558,7 @@ class MovieDetailView(DetailView):
                 'full_display': d.strftime('%A, %b %d, %Y')
             })
 
-        # Selected Date logic
+        # Selected Date logic: query param > first available date
         selected_date_param = self.request.GET.get('date', '').strip()
         selected_date = None
         if selected_date_param:
@@ -504,31 +570,40 @@ class MovieDetailView(DetailView):
         if not selected_date and raw_dates:
             selected_date = raw_dates[0]
 
-        # Extract all available cities for this movie
-        available_cities = sorted(
-            list({s.screen.theater.city for s in shows_qs}),
-            key=lambda c: c.name
-        )
-
-        # Selected City logic: query param > active session city > all
-        selected_city_param = self.request.GET.get('city', '').strip()
-        if not selected_city_param:
-            active_city = context.get('current_city')
-            if active_city and any(c.id == active_city.id for c in available_cities):
-                selected_city_param = str(active_city.id)
-
-        # Filter shows by selected date & optional city
-        day_filtered_shows = shows_qs
+        # Extract available screening languages for this movie in this city & date
+        date_filtered_shows = city_shows
         if selected_date:
-            day_filtered_shows = day_filtered_shows.filter(start_time__date=selected_date)
+            date_filtered_shows = date_filtered_shows.filter(start_time__date=selected_date)
 
-        if selected_city_param:
-            if selected_city_param.isdigit():
-                day_filtered_shows = day_filtered_shows.filter(screen__theater__city_id=int(selected_city_param))
+        available_language_ids = set()
+        for s in (date_filtered_shows if date_filtered_shows.exists() else city_shows):
+            if s.language_id:
+                available_language_ids.add(s.language_id)
+            elif movie.language_id:
+                available_language_ids.add(movie.language_id)
+
+        available_languages = Language.objects.filter(id__in=available_language_ids).order_by('name')
+
+        # Selected Language filter
+        selected_lang_param = self.request.GET.get('language', '').strip()
+        selected_language_obj = None
+        if selected_lang_param:
+            if selected_lang_param.isdigit():
+                selected_language_obj = Language.objects.filter(id=int(selected_lang_param)).first()
             else:
-                day_filtered_shows = day_filtered_shows.filter(screen__theater__city__name__iexact=selected_city_param)
+                selected_language_obj = Language.objects.filter(
+                    Q(code=selected_lang_param) | Q(name__iexact=selected_lang_param)
+                ).first()
 
-        # Group by Theater -> Screen -> Shows
+        # Apply date, city, and language filters to active shows
+        day_filtered_shows = date_filtered_shows
+        if selected_language_obj:
+            day_filtered_shows = day_filtered_shows.filter(
+                Q(language=selected_language_obj) | 
+                Q(language__isnull=True, movie__language=selected_language_obj)
+            )
+
+        # 5. Group by Theater -> Screen -> Shows
         theaters_map = {}
         for s in day_filtered_shows:
             t = s.screen.theater
@@ -561,17 +636,24 @@ class MovieDetailView(DetailView):
                 'total_shows': sum(len(x['shows']) for x in screens_list)
             })
 
-        # Order theaters by city name, then theater name
         grouped_theaters.sort(key=lambda x: (x['city'].name, x['theater'].name))
+
+        # Annotate whether movie has active bookable tickets
+        movie.has_active_shows = bool(all_shows_qs.exists())
+        context['has_active_shows'] = bool(all_shows_qs.exists())
 
         context['available_dates'] = available_dates
         context['selected_date'] = selected_date
         context['selected_date_str'] = selected_date.strftime('%Y-%m-%d') if selected_date else ''
         context['available_cities'] = available_cities
         context['selected_city'] = selected_city_param
+        context['active_city_obj'] = active_city_obj
+        context['available_languages'] = available_languages
+        context['selected_language'] = selected_lang_param
+        context['selected_language_obj'] = selected_language_obj
         context['grouped_theaters'] = grouped_theaters
         context['total_shows_count'] = day_filtered_shows.count()
-        context['total_all_shows_count'] = shows_qs.count()
+        context['total_all_shows_count'] = all_shows_qs.count()
         context['shows'] = day_filtered_shows
 
         # Similar movies (share same genres)
@@ -583,6 +665,7 @@ class MovieDetailView(DetailView):
         context['recommendations'] = get_personalized_recommendations(
             user=self.request.user if self.request.user.is_authenticated else None,
             session_key=session_key,
+            city=active_city_obj,
             limit=4
         )
         return context
@@ -640,7 +723,11 @@ class MovieAPIDiscoveryView(View):
             qs = qs.filter(
                 Q(title__icontains=search_query) |
                 Q(description__icontains=search_query) |
-                Q(director__icontains=search_query)
+                Q(director__icontains=search_query) |
+                Q(tagline__icontains=search_query) |
+                Q(cast_members__name__icontains=search_query) |
+                Q(genres__name__icontains=search_query) |
+                Q(language__name__icontains=search_query)
             )
 
         genre_id = request.GET.get('genre')
@@ -753,6 +840,8 @@ class MovieSuggestionsAPIView(View):
                 Q(title__icontains=query) |
                 Q(description__icontains=query) |
                 Q(director__icontains=query) |
+                Q(tagline__icontains=query) |
+                Q(cast_members__name__icontains=query) |
                 Q(genres__name__icontains=query) |
                 Q(language__name__icontains=query)
             ).distinct().order_by('-release_date', '-popularity')
