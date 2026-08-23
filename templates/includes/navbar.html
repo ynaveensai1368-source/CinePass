@@ -76,14 +76,14 @@
                             <i class="fa-solid fa-circle-user fs-5 text-danger"></i>
                             <span class="fw-semibold">{{ user.first_name|default:user.username }}</span>
                         </a>
-                        <ul class="dropdown-menu dropdown-menu-end shadow-lg border-secondary bg-dark">
-                            <li><a class="dropdown-item text-white d-flex align-items-center gap-2" href="{% url 'accounts:profile' %}"><i class="fa-solid fa-user-gear text-primary"></i> My Profile</a></li>
-                            <li><a class="dropdown-item text-white d-flex align-items-center gap-2" href="{% url 'accounts:booking_history' %}"><i class="fa-solid fa-ticket text-success"></i> Booking History</a></li>
-                            <li><a class="dropdown-item text-white d-flex align-items-center gap-2" href="{% url 'accounts:payment_history' %}"><i class="fa-solid fa-credit-card text-info"></i> Payment History</a></li>
+                        <ul class="dropdown-menu dropdown-menu-end shadow-lg border-secondary">
+                            <li><a class="dropdown-item d-flex align-items-center gap-2" href="{% url 'accounts:profile' %}"><i class="fa-solid fa-user-gear text-primary"></i> My Profile</a></li>
+                            <li><a class="dropdown-item d-flex align-items-center gap-2" href="{% url 'accounts:booking_history' %}"><i class="fa-solid fa-ticket text-success"></i> Booking History</a></li>
+                            <li><a class="dropdown-item d-flex align-items-center gap-2" href="{% url 'accounts:payment_history' %}"><i class="fa-solid fa-credit-card text-info"></i> Payment History</a></li>
                             {% if user.is_staff %}
                                 <li><hr class="dropdown-divider border-secondary"></li>
-                                <li><a class="dropdown-item text-white d-flex align-items-center gap-2" href="{% url 'movies:create' %}"><i class="fa-solid fa-plus-circle text-warning"></i> Add Movie</a></li>
-                                <li><a class="dropdown-item text-white d-flex align-items-center gap-2" href="{% url 'admin:index' %}" target="_blank"><i class="fa-solid fa-shield-halved text-info"></i> Admin Panel</a></li>
+                                <li><a class="dropdown-item d-flex align-items-center gap-2" href="{% url 'movies:create' %}"><i class="fa-solid fa-plus-circle text-warning"></i> Add Movie</a></li>
+                                <li><a class="dropdown-item d-flex align-items-center gap-2" href="{% url 'admin:index' %}" target="_blank"><i class="fa-solid fa-shield-halved text-info"></i> Admin Panel</a></li>
                             {% endif %}
                             <li><hr class="dropdown-divider border-secondary"></li>
                             <li><a class="dropdown-item text-danger d-flex align-items-center gap-2" href="{% url 'accounts:logout' %}"><i class="fa-solid fa-right-from-bracket"></i> Logout</a></li>

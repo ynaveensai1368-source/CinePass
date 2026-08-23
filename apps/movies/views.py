@@ -118,16 +118,30 @@ class HomeView(TemplateView):
         lang_priority_case = Case(*lang_whens, default=Value(10), output_field=IntegerField())
 
         # 4. Now Playing in Theaters: Specifically movies currently running in the user's selected city!
+        selected_lang_param = self.request.GET.get('language', '').strip()
+        selected_lang_obj = None
+        if selected_lang_param:
+            if selected_lang_param.isdigit():
+                selected_lang_obj = Language.objects.filter(id=int(selected_lang_param)).first()
+            else:
+                selected_lang_obj = Language.objects.filter(Q(code=selected_lang_param) | Q(name__iexact=selected_lang_param)).first()
+
         if current_city:
             now_playing_city_qs = base_movies.filter(
                 has_active_shows=True
-            ).annotate(
+            )
+            if selected_lang_obj:
+                now_playing_city_qs = now_playing_city_qs.filter(
+                    Q(language=selected_lang_obj) | Q(shows__language=selected_lang_obj)
+                ).distinct()
+
+            now_playing_city_qs = now_playing_city_qs.annotate(
                 lang_priority=lang_priority_case
             ).order_by('-lang_priority', '-release_date', '-popularity')[:12]
 
             now_playing_list = list(now_playing_city_qs)
-            # If city has no active theatrical shows, fallback to active shows in any city
-            if not now_playing_list:
+            # If city has no active theatrical shows (and no language filter active), fallback to active shows in any city
+            if not now_playing_list and not selected_lang_param:
                 any_shows_subquery = Show.objects.filter(
                     movie=OuterRef('pk'),
                     start_time__gte=now,
@@ -142,11 +156,16 @@ class HomeView(TemplateView):
                 now_playing_list = list(fallback_qs)
             now_playing_qs = now_playing_list
         else:
-            now_playing_qs = list(base_movies.filter(
-                has_active_shows=True
-            ).order_by('-release_date', '-popularity')[:8])
+            now_playing_qs = base_movies.filter(has_active_shows=True)
+            if selected_lang_obj:
+                now_playing_qs = now_playing_qs.filter(
+                    Q(language=selected_lang_obj) | Q(shows__language=selected_lang_obj)
+                ).distinct()
+            now_playing_qs = list(now_playing_qs.order_by('-release_date', '-popularity')[:8])
 
         context['now_playing'] = now_playing_qs
+        context['selected_language'] = selected_lang_param
+        context['selected_language_obj'] = selected_lang_obj
 
         # 5. Hero Banner Carousel: High-res backdrops of top movies available in current city or top blockbusters
         hero_movies = [m for m in now_playing_qs if m.backdrop_url][:5]
@@ -380,7 +399,8 @@ class MovieDiscoveryView(ListView):
         context['current_category'] = self.request.GET.get('category', '').strip()
         context['current_genre'] = self.request.GET.get('genre', '').strip()
         context['current_language'] = self.request.GET.get('language', '').strip()
-        context['current_city'] = str(active_city.id) if active_city else self.request.GET.get('city', '').strip()
+        context['current_city'] = active_city
+        context['current_city_id'] = active_city.id if active_city else None
         context['current_theater'] = self.request.GET.get('theater', '').strip()
         context['current_rating'] = self.request.GET.get('rating', '').strip()
         context['current_sort'] = self.request.GET.get('sort', 'popularity').strip()

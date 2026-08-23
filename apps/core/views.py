@@ -225,8 +225,14 @@ def get_city_languages_api(request):
     if city_id and str(city_id).isdigit():
         shows_qs = shows_qs.filter(screen__theater__city_id=int(city_id))
 
-    lang_ids = shows_qs.values_list('movie__language_id', flat=True).distinct()
-    languages = Language.objects.filter(id__in=lang_ids).order_by('name')
+    city_show_langs = shows_qs.values_list('language_id', 'movie__language_id')
+    lang_ids = set()
+    for l_id, ml_id in city_show_langs:
+        if l_id:
+            lang_ids.add(l_id)
+        elif ml_id:
+            lang_ids.add(ml_id)
 
+    languages = Language.objects.filter(id__in=lang_ids).order_by('name')
     langs_data = [{'id': l.id, 'name': l.name, 'code': l.code} for l in languages]
     return JsonResponse({'status': 'success', 'languages': langs_data})

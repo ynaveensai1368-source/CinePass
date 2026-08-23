@@ -2,7 +2,9 @@
     <h5 class="fw-bold mb-0">
         <i class="fa-solid fa-sliders text-danger me-2"></i> Filters
     </h5>
-    <a href="{% url 'movies:discovery' %}" class="btn btn-link text-secondary btn-sm text-decoration-none px-0">Reset</a>
+    <a href="{% url 'movies:discovery' %}{% if current_city %}?city={{ current_city }}{% endif %}" class="btn btn-link text-secondary btn-sm text-decoration-none px-0">
+        <i class="fa-solid fa-rotate-left me-1"></i> Reset
+    </a>
 </div>
 
 <form method="GET" action="{% url 'movies:discovery' %}" id="filterForm">

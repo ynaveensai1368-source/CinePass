@@ -86,25 +86,41 @@
 
     <!-- Available Languages in Current City Quick Filter Pills -->
     {% if city_languages %}
-    <div class="d-flex flex-wrap gap-2 mb-3">
-        <a href="{% url 'movies:discovery' %}?city={{ current_city_id }}" class="badge bg-secondary bg-opacity-25 text-white-80 text-decoration-none px-3 py-2 rounded-pill border border-secondary border-opacity-25">
+    <div class="d-flex flex-wrap gap-2 mb-3 align-items-center">
+        <span class="text-secondary small fw-semibold me-1"><i class="fa-solid fa-language text-danger me-1"></i> Languages:</span>
+        <a href="?{% if current_city_id %}city={{ current_city_id }}{% endif %}" 
+           class="badge {% if not selected_language %}bg-danger text-white shadow-sm{% else %}bg-secondary bg-opacity-25 text-white-80 border border-secondary border-opacity-25{% endif %} text-decoration-none px-3 py-2 rounded-pill transition-all">
             All Languages
         </a>
         {% for lang in city_languages %}
-            <a href="{% url 'movies:discovery' %}?city={{ current_city_id }}&language={{ lang.id }}" class="badge bg-dark text-white-80 text-decoration-none px-3 py-2 rounded-pill border border-secondary border-opacity-25 hover-accent">
+            <a href="?{% if current_city_id %}city={{ current_city_id }}&{% endif %}language={{ lang.id }}" 
+               class="badge {% if selected_language == lang.id|stringformat:'s' or selected_language == lang.code %}bg-danger text-white shadow-sm{% else %}bg-dark text-white-80 border border-secondary border-opacity-25{% endif %} text-decoration-none px-3 py-2 rounded-pill hover-accent transition-all">
                 {{ lang.name }}
             </a>
         {% endfor %}
     </div>
     {% endif %}
 
-    <div class="row row-cols-2 row-cols-md-3 row-cols-lg-6 g-3 mb-5">
-        {% for movie in now_playing %}
-            <div class="col">
-                {% include 'includes/movie_card.html' with movie=movie %}
+    {% if now_playing %}
+        <div class="row row-cols-2 row-cols-md-3 row-cols-lg-6 g-3 mb-5">
+            {% for movie in now_playing %}
+                <div class="col">
+                    {% include 'includes/movie_card.html' with movie=movie %}
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="card bg-slate-900 border border-secondary border-opacity-25 rounded-4 p-5 text-center mb-5 text-secondary">
+            <i class="fa-solid fa-film display-5 text-danger opacity-50 mb-3"></i>
+            <h5 class="text-white mb-2">No {{ selected_language_obj.name|default:"" }} Movies Currently Playing in {{ current_city.name }}</h5>
+            <p class="small text-secondary mb-3">There are no screenings matching your selected language filter at this time.</p>
+            <div class="d-flex justify-content-center gap-2">
+                <a href="?{% if current_city_id %}city={{ current_city_id }}{% endif %}" class="btn btn-outline-danger btn-sm rounded-pill px-4">
+                    <i class="fa-solid fa-rotate-left me-1"></i> View All Languages
+                </a>
             </div>
-        {% endfor %}
-    </div>
+        </div>
+    {% endif %}
     {% endif %}
 
     <!-- Recommended For You Section -->
