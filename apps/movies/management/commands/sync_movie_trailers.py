@@ -2,7 +2,7 @@ import time
 from django.core.management.base import BaseCommand
 from django.db.models import Q
 from movies.models import Movie
-from movies.utils.tmdb import get_movie_trailer_url, search_tmdb_movie_id
+from movies.utils.tmdb import get_movie_trailer_data, get_movie_trailer_url, search_tmdb_movie_id
 
 
 class Command(BaseCommand):
@@ -12,13 +12,13 @@ class Command(BaseCommand):
         parser.add_argument(
             '--force',
             action='store_true',
-            help='Re-fetch and overwrite trailers for all movies, not just missing ones.'
+            help='Re-fetch and overwrite trailers for all movies, clearing invalid ones.'
         )
         parser.add_argument(
             '--missing-only',
             action='store_true',
-            default=True,
-            help='Only process movies with missing or empty trailer_url (default).'
+            default=False,
+            help='Only process movies with missing or empty trailer_url.'
         )
         parser.add_argument(
             '--limit',
@@ -33,7 +33,7 @@ class Command(BaseCommand):
 
         if force:
             qs = Movie.objects.filter(is_active=True)
-            self.stdout.write(self.style.WARNING("Force mode enabled: Checking all active movies..."))
+            self.stdout.write(self.style.WARNING("Force mode enabled: Checking and auditing all active movies..."))
         else:
             qs = Movie.objects.filter(is_active=True).filter(
                 Q(trailer_url__isnull=True) | Q(trailer_url='')
@@ -46,6 +46,7 @@ class Command(BaseCommand):
         movies = list(qs.select_related('language'))
         total = len(movies)
         updated_count = 0
+        cleared_count = 0
         not_found_count = 0
 
         self.stdout.write(self.style.SUCCESS(f"Starting trailer synchronization for {total} movies...\n"))
@@ -67,17 +68,26 @@ class Command(BaseCommand):
                 not_found_count += 1
                 continue
 
-            # Resilient multi-language trailer discovery
+            # Resilient multi-language trailer discovery for this exact TMDb movie ID
             t_data = get_movie_trailer_data(movie.tmdb_id, original_language=lang_code, title=movie.title)
 
             if t_data and t_data.get('embed_url'):
-                movie.trailer_url = t_data['embed_url']
-                movie.save(update_fields=['trailer_url'])
-                updated_count += 1
-                self.stdout.write(self.style.SUCCESS(f"[{i}/{total}] {title_safe} ({lang_code}): Updated -> [{t_data['type']}] {t_data['name']} ({t_data['key']})"))
+                if movie.trailer_url != t_data['embed_url']:
+                    movie.trailer_url = t_data['embed_url']
+                    movie.save(update_fields=['trailer_url'])
+                    updated_count += 1
+                    self.stdout.write(self.style.SUCCESS(f"[{i}/{total}] {title_safe} ({lang_code}): Updated -> [{t_data['type']}] {t_data['name']} ({t_data['key']})"))
+                else:
+                    self.stdout.write(self.style.NOTICE(f"[{i}/{total}] {title_safe} ({lang_code}): Already accurate ({t_data['key']})"))
             else:
-                not_found_count += 1
-                self.stdout.write(self.style.NOTICE(f"[{i}/{total}] {title_safe} ({lang_code}): No trailer on TMDb"))
+                if movie.trailer_url and force:
+                    movie.trailer_url = ''
+                    movie.save(update_fields=['trailer_url'])
+                    cleared_count += 1
+                    self.stdout.write(self.style.WARNING(f"[{i}/{total}] {title_safe} ({lang_code}): Cleared invalid trailer (none on TMDb)"))
+                else:
+                    not_found_count += 1
+                    self.stdout.write(self.style.NOTICE(f"[{i}/{total}] {title_safe} ({lang_code}): No trailer on TMDb"))
 
 
             # Rate limit protection

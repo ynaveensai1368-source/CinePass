@@ -185,3 +185,126 @@ class MovieDiscoverySystemTests(TestCase):
         )
         self.assertEqual(empty_m.get_poster_url, FALLBACK_POSTER)
         self.assertEqual(empty_m.get_backdrop_url, FALLBACK_POSTER)
+
+    def test_movie_detail_grouped_theaters_and_showtimes(self):
+        """Verify that movie details view groups showtimes hierarchically by Theater and Screen."""
+        # Create a second screen in the same theater and a second show
+        screen2 = Screen.objects.create(theater=self.theater, name='IMAX Laser Screen 2', screen_type='IMAX_3D', total_seats=80)
+        show2 = Show.objects.create(
+            movie=self.movie1,
+            screen=screen2,
+            start_time=timezone.now() + datetime.timedelta(days=1, hours=3),
+            base_price=Decimal('25.00'),
+            available_seats=80
+        )
+
+        url = reverse('movies:detail', kwargs={'slug': self.movie1.slug})
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+
+        # Check context variables
+        self.assertIn('grouped_theaters', response.context)
+        self.assertIn('available_dates', response.context)
+        self.assertIn('available_cities', response.context)
+
+        grouped = response.context['grouped_theaters']
+        self.assertEqual(len(grouped), 1)  # Only 1 unique theater
+        self.assertEqual(grouped[0]['theater'], self.theater)
+        self.assertEqual(grouped[0]['city'], self.city)
+        self.assertEqual(len(grouped[0]['screens']), 2)  # 2 distinct screens
+
+        # Verify only Movie 1 showtimes are shown (not another movie)
+        other_movie = self.movie2
+        other_show = Show.objects.create(
+            movie=other_movie,
+            screen=self.screen,
+            start_time=timezone.now() + datetime.timedelta(days=1),
+            base_price=Decimal('20.00'),
+            available_seats=50
+        )
+        response_other = self.client.get(reverse('movies:detail', kwargs={'slug': other_movie.slug}))
+        self.assertEqual(response_other.status_code, 200)
+        other_grouped = response_other.context['grouped_theaters']
+        self.assertEqual(len(other_grouped), 1)
+        # Ensure other movie page only lists other_show
+        shows_in_other = other_grouped[0]['screens'][0]['shows']
+        self.assertEqual(len(shows_in_other), 1)
+        self.assertEqual(shows_in_other[0].id, other_show.id)
+
+    def test_movie_trailer_properties_and_isolation(self):
+        """Test strict movie-to-trailer relationship and property methods."""
+        # 1. Movie with standard YouTube Watch URL
+        movie_with_trailer = Movie.objects.create(
+            title='Trailer Test Movie 1',
+            description='Test description',
+            language=self.lang,
+            duration=120,
+            release_date=datetime.date(2025, 1, 1),
+            trailer_url='https://www.youtube.com/watch?v=8TZMtslA3UY'
+        )
+        self.assertEqual(movie_with_trailer.trailer_youtube_key, '8TZMtslA3UY')
+        self.assertTrue(movie_with_trailer.has_trailer)
+        self.assertEqual(movie_with_trailer.get_clean_trailer_url, 'https://www.youtube.com/embed/8TZMtslA3UY?autoplay=1')
+        self.assertEqual(movie_with_trailer.get_youtube_watch_url, 'https://www.youtube.com/watch?v=8TZMtslA3UY')
+
+        # 2. Movie with YouTube Embed URL
+        movie_with_embed = Movie.objects.create(
+            title='Trailer Test Movie 2',
+            description='Test description',
+            language=self.lang,
+            duration=115,
+            release_date=datetime.date(2025, 2, 1),
+            trailer_url='https://www.youtube.com/embed/Mzw2ttJD2qQ?autoplay=1'
+        )
+        self.assertEqual(movie_with_embed.trailer_youtube_key, 'Mzw2ttJD2qQ')
+        self.assertTrue(movie_with_embed.has_trailer)
+        self.assertEqual(movie_with_embed.get_clean_trailer_url, 'https://www.youtube.com/embed/Mzw2ttJD2qQ?autoplay=1')
+        self.assertEqual(movie_with_embed.get_youtube_watch_url, 'https://www.youtube.com/watch?v=Mzw2ttJD2qQ')
+
+        # 3. Movie with NO trailer
+        movie_no_trailer = Movie.objects.create(
+            title='No Trailer Movie',
+            description='Test description',
+            language=self.lang,
+            duration=100,
+            release_date=datetime.date(2025, 3, 1),
+            trailer_url=''
+        )
+        self.assertEqual(movie_no_trailer.trailer_youtube_key, '')
+        self.assertFalse(movie_no_trailer.has_trailer)
+        self.assertEqual(movie_no_trailer.get_clean_trailer_url, '')
+        self.assertEqual(movie_no_trailer.get_youtube_watch_url, '')
+
+        # 4. Ensure distinct movies have different trailer keys
+        self.assertNotEqual(movie_with_trailer.trailer_youtube_key, movie_with_embed.trailer_youtube_key)
+
+    def test_movie_detail_view_trailer_context(self):
+        """Test detail page renders trailer attributes for movie with trailer vs movie without."""
+        m_trailer = Movie.objects.create(
+            title='Detail Trailer Movie',
+            description='Test description',
+            language=self.lang,
+            duration=120,
+            release_date=datetime.date(2025, 1, 1),
+            trailer_url='https://www.youtube.com/watch?v=8TZMtslA3UY'
+        )
+        res = self.client.get(reverse('movies:detail', kwargs={'slug': m_trailer.slug}))
+        self.assertEqual(res.status_code, 200)
+        self.assertTrue(res.context['has_trailer'])
+        self.assertEqual(res.context['trailer_youtube_key'], '8TZMtslA3UY')
+        self.assertContains(res, 'Watch Official Trailer')
+
+        m_no_trailer = Movie.objects.create(
+            title='Detail No Trailer Movie',
+            description='Test description',
+            language=self.lang,
+            duration=100,
+            release_date=datetime.date(2025, 3, 1),
+            trailer_url=''
+        )
+        res_no = self.client.get(reverse('movies:detail', kwargs={'slug': m_no_trailer.slug}))
+        self.assertEqual(res_no.status_code, 200)
+        self.assertFalse(res_no.context['has_trailer'])
+        self.assertEqual(res_no.context['trailer_youtube_key'], '')
+        self.assertContains(res_no, 'Trailer Unavailable')
+

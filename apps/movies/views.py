@@ -285,7 +285,7 @@ class MovieDetailView(DetailView):
 
             # 2. Dynamic multi-priority trailer discovery
             if movie.tmdb_id:
-                if not movie.trailer_url:
+                if not movie.has_trailer:
                     from movies.utils.tmdb import get_movie_trailer_data
                     orig_lang = movie.language.code if movie.language else None
                     t_data = get_movie_trailer_data(movie.tmdb_id, original_language=orig_lang, title=movie.title)
@@ -328,14 +328,124 @@ class MovieDetailView(DetailView):
 
 
 
-        # Active shows for ticket booking
-        shows = Show.objects.filter(
+        # 4. Active Shows & Multi-tier Hierarchical Grouping (City -> Theater -> Screen -> Shows)
+        now = timezone.now()
+        shows_qs = Show.objects.filter(
             movie=movie,
-            start_time__gte=timezone.now()
-        ).select_related('screen__theater', 'screen__theater__city').order_by('screen__theater__city', 'screen__theater__name', 'start_time')
-        
-        context['shows'] = shows
-        
+            start_time__gte=now,
+            status='OPEN'
+        ).select_related(
+            'screen__theater__city',
+            'screen__theater',
+            'screen'
+        ).order_by(
+            'start_time',
+            'screen__theater__city__name',
+            'screen__theater__name',
+            'screen__name'
+        )
+
+        # Extract unique available dates with active shows
+        raw_dates = sorted(list({s.start_time.date() for s in shows_qs}))
+        today = now.date()
+        tomorrow = today + datetime.timedelta(days=1)
+
+        available_dates = []
+        for d in raw_dates:
+            if d == today:
+                day_name = 'Today'
+            elif d == tomorrow:
+                day_name = 'Tomorrow'
+            else:
+                day_name = d.strftime('%a')
+
+            available_dates.append({
+                'date': d,
+                'date_str': d.strftime('%Y-%m-%d'),
+                'day_name': day_name,
+                'day_number': d.strftime('%d'),
+                'month_name': d.strftime('%b'),
+                'full_display': d.strftime('%A, %b %d, %Y')
+            })
+
+        # Selected Date logic
+        selected_date_param = self.request.GET.get('date', '').strip()
+        selected_date = None
+        if selected_date_param:
+            try:
+                selected_date = datetime.datetime.strptime(selected_date_param, '%Y-%m-%d').date()
+            except ValueError:
+                selected_date = None
+
+        if not selected_date and raw_dates:
+            selected_date = raw_dates[0]
+
+        # Selected City logic
+        selected_city_param = self.request.GET.get('city', '').strip()
+
+        # Extract all available cities for this movie
+        available_cities = sorted(
+            list({s.screen.theater.city for s in shows_qs}),
+            key=lambda c: c.name
+        )
+
+        # Filter shows by selected date & optional city
+        day_filtered_shows = shows_qs
+        if selected_date:
+            day_filtered_shows = day_filtered_shows.filter(start_time__date=selected_date)
+
+        if selected_city_param:
+            if selected_city_param.isdigit():
+                day_filtered_shows = day_filtered_shows.filter(screen__theater__city_id=int(selected_city_param))
+            else:
+                day_filtered_shows = day_filtered_shows.filter(screen__theater__city__name__iexact=selected_city_param)
+
+        # Group by Theater -> Screen -> Shows
+        theaters_map = {}
+        for s in day_filtered_shows:
+            t = s.screen.theater
+            scr = s.screen
+
+            if t.id not in theaters_map:
+                theaters_map[t.id] = {
+                    'theater': t,
+                    'city': t.city,
+                    'screens': {}
+                }
+
+            if scr.id not in theaters_map[t.id]['screens']:
+                theaters_map[t.id]['screens'][scr.id] = {
+                    'screen': scr,
+                    'screen_type_display': scr.get_screen_type_display(),
+                    'shows': []
+                }
+
+            theaters_map[t.id]['screens'][scr.id]['shows'].append(s)
+
+        grouped_theaters = []
+        for t_data in theaters_map.values():
+            screens_list = list(t_data['screens'].values())
+            screens_list.sort(key=lambda x: (x['screen'].name))
+            grouped_theaters.append({
+                'theater': t_data['theater'],
+                'city': t_data['city'],
+                'screens': screens_list,
+                'total_shows': sum(len(x['shows']) for x in screens_list)
+            })
+
+        # Order theaters by city name, then theater name
+        grouped_theaters.sort(key=lambda x: (x['city'].name, x['theater'].name))
+
+        context['available_dates'] = available_dates
+        context['selected_date'] = selected_date
+        context['selected_date_str'] = selected_date.strftime('%Y-%m-%d') if selected_date else ''
+        context['available_cities'] = available_cities
+        context['selected_city'] = selected_city_param
+        context['grouped_theaters'] = grouped_theaters
+        context['total_shows_count'] = day_filtered_shows.count()
+        context['total_all_shows_count'] = shows_qs.count()
+        context['shows'] = day_filtered_shows
+
         # Similar movies (share same genres)
         context['similar_movies'] = Movie.objects.filter(
             genres__in=movie.genres.all()

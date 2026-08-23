@@ -88,8 +88,11 @@ class Command(BaseCommand):
                         Seat.objects.bulk_create(seats)
 
         # 4. Movies
+        from movies.utils.tmdb import get_movie_trailer_data
+
         movies_data = [
             {
+                'tmdb_id': 693134,
                 'title': 'Dune: Part Two',
                 'description': 'Paul Atreides unites with Chani and the Fremen while seeking revenge against the conspirators who destroyed his family.',
                 'duration': 166,
@@ -97,11 +100,11 @@ class Command(BaseCommand):
                 'rating': Decimal('8.6'),
                 'popularity': 98,
                 'category': 'popular',
-                'trailer_url': 'https://www.youtube.com/watch?v=Way9Dexny3w',
                 'poster_url': 'https://image.tmdb.org/t/p/w500/1pdfLPoL6VFi8283vFhMBmWRjJw.jpg',
                 'genres': ['Sci-Fi', 'Adventure', 'Action']
             },
             {
+                'tmdb_id': 872585,
                 'title': 'Oppenheimer',
                 'description': 'The story of American scientist J. Robert Oppenheimer and his role in the development of the atomic bomb.',
                 'duration': 180,
@@ -109,11 +112,11 @@ class Command(BaseCommand):
                 'rating': Decimal('8.9'),
                 'popularity': 95,
                 'category': 'top_rated',
-                'trailer_url': 'https://www.youtube.com/watch?v=uYPbbksJxIg',
                 'poster_url': 'https://image.tmdb.org/t/p/w500/8Gxv8gSFCU0XGDykEGvC271sC21.jpg',
                 'genres': ['Drama', 'Thriller']
             },
             {
+                'tmdb_id': 792307,
                 'title': 'Kalki 2898 AD',
                 'description': 'A modern avatar of Vishnu descends to Earth to protect humanity against evil forces in a post-apocalyptic world.',
                 'duration': 180,
@@ -121,7 +124,6 @@ class Command(BaseCommand):
                 'rating': Decimal('8.2'),
                 'popularity': 92,
                 'category': 'now_playing',
-                'trailer_url': 'https://www.youtube.com/watch?v=kQDd1AhGIHk',
                 'poster_url': 'https://image.tmdb.org/t/p/w500/61c8vAUp1YtT2P2q44S0Yl90JjL.jpg',
                 'genres': ['Action', 'Sci-Fi']
             },
@@ -129,9 +131,19 @@ class Command(BaseCommand):
 
         created_movies = []
         for mdata in movies_data:
+            genres_list = mdata.pop('genres', [])
+            tmdb_id = mdata.get('tmdb_id')
+            trailer_url = ''
+            if tmdb_id:
+                tdata = get_movie_trailer_data(tmdb_id, title=mdata['title'])
+                if tdata and tdata.get('embed_url'):
+                    trailer_url = tdata['embed_url']
+            mdata['trailer_url'] = trailer_url
+
             movie, _ = Movie.objects.get_or_create(
                 title=mdata['title'],
                 defaults={
+                    'tmdb_id': tmdb_id,
                     'description': mdata['description'],
                     'duration': mdata['duration'],
                     'release_date': mdata['release_date'],
@@ -139,11 +151,14 @@ class Command(BaseCommand):
                     'popularity': mdata['popularity'],
                     'category': mdata['category'],
                     'language': languages[0],
-                    'trailer_url': mdata['trailer_url'],
+                    'trailer_url': trailer_url,
                     'poster_url': mdata['poster_url'],
                 }
             )
-            for gname in mdata['genres']:
+            if not movie.trailer_url and trailer_url:
+                movie.trailer_url = trailer_url
+                movie.save(update_fields=['trailer_url'])
+            for gname in genres_list:
                 gobj = next((g for g in genres if g.name == gname), None)
                 if gobj:
                     movie.genres.add(gobj)

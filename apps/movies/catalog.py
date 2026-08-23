@@ -121,7 +121,6 @@ def seed_production_catalog():
             'category': 'now_playing',
             'poster_url': 'https://image.tmdb.org/t/p/w500/iPOn6DinuVyLY17YM9mKuPofV08.jpg',
             'backdrop_url': 'https://image.tmdb.org/t/p/w1280/7iwUUcKURMT7aKfCwMy6YnGtchD.jpg',
-            'trailer_url': 'https://www.youtube.com/watch?v=8TZMtslA3UY',
             'director': 'Destin Daniel Cretton',
         },
         {
@@ -138,7 +137,6 @@ def seed_production_catalog():
             'category': 'now_playing',
             'poster_url': 'https://image.tmdb.org/t/p/w500/5rhTDKUhPYvpdQIijFIs5VoWsON.jpg',
             'backdrop_url': 'https://image.tmdb.org/t/p/w1280/RMXG8myu1aGlNUsRjtxzmpdMK0.jpg',
-            'trailer_url': 'https://www.youtube.com/watch?v=Mzw2ttJD2qQ',
             'director': 'Uberto Pasolini',
         },
         {
@@ -155,7 +153,6 @@ def seed_production_catalog():
             'category': 'now_playing',
             'poster_url': 'https://image.tmdb.org/t/p/w500/sfQtVlIHljToOwYjhe21KPGzZWK.jpg',
             'backdrop_url': 'https://image.tmdb.org/t/p/w1280/8sSKdEmlmqF4kJUd28SqthXC4yZ.jpg',
-            'trailer_url': 'https://www.youtube.com/watch?v=TcMBFSGVi1c',
             'director': 'Andrew Stanton',
         },
         {
@@ -172,7 +169,6 @@ def seed_production_catalog():
             'category': 'now_playing',
             'poster_url': 'https://image.tmdb.org/t/p/w500/lsYSWqj6i2iyUDJoLA2cazFJYlC.jpg',
             'backdrop_url': 'https://image.tmdb.org/t/p/w1280/jUdV706J4d3nUEbfimqVnGZqTbW.jpg',
-            'trailer_url': 'https://www.youtube.com/watch?v=LNlrGhBpYjc',
             'director': 'Jean-Francois Richet',
         },
         {
@@ -189,7 +185,6 @@ def seed_production_catalog():
             'category': 'now_playing',
             'poster_url': 'https://image.tmdb.org/t/p/w500/tN799oUR0f1gUKDYdMNrDaY7I51.jpg',
             'backdrop_url': 'https://image.tmdb.org/t/p/w1280/84FEpVVbSKYvKXDZJDZXOKBxCEm.jpg',
-            'trailer_url': 'https://www.youtube.com/watch?v=Way9Dexny3w',
             'director': 'Alex Garland',
         },
         {
@@ -206,7 +201,6 @@ def seed_production_catalog():
             'category': 'now_playing',
             'poster_url': 'https://image.tmdb.org/t/p/w500/4LwvU9SZc8QQzW1X1FAPhNbXnEU.jpg',
             'backdrop_url': 'https://image.tmdb.org/t/p/w1280/kkcwhgSFd81QDlXo8ytrpHPQjhy.jpg',
-            'trailer_url': 'https://www.youtube.com/watch?v=67vbA5ZJdKQ',
             'director': 'Pierre Coffin',
         },
         {
@@ -223,7 +217,6 @@ def seed_production_catalog():
             'category': 'now_playing',
             'poster_url': 'https://image.tmdb.org/t/p/w500/bRwnj8WEKBCvmfeUNOukJPwB43K.jpg',
             'backdrop_url': 'https://image.tmdb.org/t/p/w1280/rZfmzpixLKLR3Hg2u0WgC7XLFl8.jpg',
-            'trailer_url': 'https://www.youtube.com/watch?v=uYPbbksJxIg',
             'director': 'David Fincher',
         },
         {
@@ -240,7 +233,6 @@ def seed_production_catalog():
             'category': 'popular',
             'poster_url': 'https://image.tmdb.org/t/p/w500/zKVgiv5qHCvCLT4A2ymJi5QeXDH.jpg',
             'backdrop_url': 'https://image.tmdb.org/t/p/w1280/c6BPbkO5Npt1OdwttAxCFo06wtH.jpg',
-            'trailer_url': 'https://www.youtube.com/watch?v=d9MyW72ELq0',
             'director': 'Thomas Kail',
         },
         {
@@ -257,7 +249,6 @@ def seed_production_catalog():
             'category': 'popular',
             'poster_url': 'https://image.tmdb.org/t/p/w500/6JU7E8Vv2M11egkctWVOScxWR75.jpg',
             'backdrop_url': 'https://image.tmdb.org/t/p/w1280/1RhfevWmWCVHtEqxWBEjPOC5KG1.jpg',
-            'trailer_url': 'https://www.youtube.com/watch?v=EXeTwQWrcwY',
             'director': 'James Wan',
         },
         {
@@ -274,7 +265,6 @@ def seed_production_catalog():
             'category': 'now_playing',
             'poster_url': 'https://image.tmdb.org/t/p/w500/adDZVEQZnMJ380zPOmVj6vBWHgk.jpg',
             'backdrop_url': 'https://image.tmdb.org/t/p/w1280/sd0RKOpnqESIWxU3sZwZhBsgAHl.jpg',
-            'trailer_url': 'https://www.youtube.com/watch?v=GY4BgdUSpbE',
             'director': 'Anurag Kashyap',
         },
         {
@@ -291,7 +281,6 @@ def seed_production_catalog():
             'category': 'popular',
             'poster_url': 'https://image.tmdb.org/t/p/w500/4tTrW9dXCByS5wt2pXVWb58zNjz.jpg',
             'backdrop_url': 'https://image.tmdb.org/t/p/w1280/hD8y787ciNWQ2bn396YrSsOIzdN.jpg',
-            'trailer_url': 'https://www.youtube.com/watch?v=x0XDEhP4MQs',
             'director': 'Patrick Wilson',
         },
         {
@@ -308,7 +297,6 @@ def seed_production_catalog():
             'category': 'now_playing',
             'poster_url': 'https://image.tmdb.org/t/p/w500/jt8pfSIdi47YpFMMWVRr8w5u2S0.jpg',
             'backdrop_url': 'https://image.tmdb.org/t/p/w1280/v3lNH2gCojWYXVuXcT9FZLBxcSq.jpg',
-            'trailer_url': 'https://www.youtube.com/watch?v=kQDd1AhGIHk',
             'director': 'Lokesh Kanagaraj',
         },
         {
@@ -325,7 +313,6 @@ def seed_production_catalog():
             'category': 'popular',
             'poster_url': 'https://image.tmdb.org/t/p/w500/8cdWjvZQUExUUTzyp4t6EDMubfO.jpg',
             'backdrop_url': 'https://image.tmdb.org/t/p/w1280/yDHYTfaA95BTy9vsOHENN3mK3aP.jpg',
-            'trailer_url': 'https://www.youtube.com/watch?v=73_1biulkYk',
             'director': 'Shawn Levy',
         },
         {
@@ -342,7 +329,6 @@ def seed_production_catalog():
             'category': 'upcoming',
             'poster_url': 'https://image.tmdb.org/t/p/w500/2cxhvwyEwRlysAmRH4iodkvo0z5.jpg',
             'backdrop_url': 'https://image.tmdb.org/t/p/w1280/euYIwmwkmz95mnXvufEmbL69ovr.jpg',
-            'trailer_url': 'https://www.youtube.com/watch?v=4rgYUipGJNo',
             'director': 'Ridley Scott',
         },
         {
@@ -359,7 +345,6 @@ def seed_production_catalog():
             'category': 'popular',
             'poster_url': 'https://image.tmdb.org/t/p/w500/kCGlIMHnOm8JPXq3rXM6c5wMxcT.jpg',
             'backdrop_url': 'https://image.tmdb.org/t/p/w1280/zh6IdheEYinU4TPtorWsjx6qPQE.jpg',
-            'trailer_url': 'https://www.youtube.com/watch?v=kQDd1AhGIHk',
             'director': 'Nag Ashwin',
         },
         {
@@ -376,10 +361,11 @@ def seed_production_catalog():
             'category': 'popular',
             'poster_url': 'https://image.tmdb.org/t/p/w500/1pdfLvkbY9ohJlCjQH2CZjjYVvJ.jpg',
             'backdrop_url': 'https://image.tmdb.org/t/p/w1280/xOMo8BRK7PfcJv9JCnx7s520b4q.jpg',
-            'trailer_url': 'https://www.youtube.com/watch?v=Way9Dexny3w',
             'director': 'Denis Villeneuve',
         },
     ]
+
+    from movies.utils.tmdb import get_movie_trailer_data
 
     created_movies = []
     for mdata in movies_data:
@@ -389,6 +375,15 @@ def seed_production_catalog():
                 tmdb_id = mdata.pop('tmdb_id', None)
                 if not mdata.get('language'):
                     mdata['language'] = default_lang
+
+                # Dynamically retrieve authentic official trailer from TMDb using unique tmdb_id
+                orig_lang = mdata['language'].code if mdata.get('language') else 'en'
+                trailer_url = ''
+                if tmdb_id:
+                    tdata = get_movie_trailer_data(tmdb_id, original_language=orig_lang, title=mdata.get('title'))
+                    if tdata and tdata.get('embed_url'):
+                        trailer_url = tdata['embed_url']
+                mdata['trailer_url'] = trailer_url
 
                 movie_obj = Movie.objects.filter(title=mdata['title']).first()
                 if not movie_obj and tmdb_id:

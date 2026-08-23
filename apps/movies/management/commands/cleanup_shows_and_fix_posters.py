@@ -100,21 +100,15 @@ class Command(BaseCommand):
                     except Exception as e:
                         self.stdout.write(self.style.WARNING(f"Detail fetch failed for TMDb #{tmdb_id}: {e}"))
 
-                    # Fetch video trailer from TMDb
+                    # Fetch authentic official YouTube video trailer from TMDb
                     try:
-                        video_url = f"{TMDB_BASE}/movie/{tmdb_id}/videos"
-                        params = {'api_key': TMDB_API_KEY} if TMDB_API_KEY else {}
-                        vresp = requests.get(video_url, params=params, headers=self.get_headers(), timeout=8)
-                        if vresp.status_code == 200:
-                            vresults = vresp.json().get('results', [])
-                            official = [v for v in vresults if v.get('site') == 'YouTube' and v.get('type') == 'Trailer' and v.get('official', True)]
-                            teasers = [v for v in vresults if v.get('site') == 'YouTube' and v.get('type') == 'Teaser']
-                            any_yt = [v for v in vresults if v.get('site') == 'YouTube']
-                            best_video = (official or teasers or any_yt or [None])[0]
-                            if best_video:
-                                movie.trailer_url = f"https://www.youtube.com/embed/{best_video['key']}?enablejsapi=1&rel=0"
+                        from movies.utils.tmdb import get_movie_trailer_data
+                        lang_code = movie.language.code if movie.language else None
+                        t_data = get_movie_trailer_data(tmdb_id, original_language=lang_code, title=movie.title)
+                        if t_data and t_data.get('embed_url'):
+                            movie.trailer_url = t_data['embed_url']
                     except Exception as e:
-                        self.stdout.write(self.style.WARNING(f"Video fetch failed for TMDb #{tmdb_id}: {e}"))
+                        self.stdout.write(self.style.WARNING(f"Trailer fetch failed for TMDb #{tmdb_id}: {e}"))
 
             # If after all attempts a movie still has NO valid poster_url, mark is_active=False
             if not movie.poster_url:

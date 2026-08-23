@@ -242,42 +242,82 @@
             const trailerWatchBtn = document.getElementById('globalTrailerWatchBtn');
             const trailerFallback = document.getElementById('globalTrailerFallback');
             const trailerFallbackLink = document.getElementById('globalTrailerFallbackLink');
+            const iframeContainer = trailerIframe ? trailerIframe.parentElement : null;
 
-            const populateTrailer = (btn) => {
-                if (!btn) return;
-                let embedUrl = btn.getAttribute('data-trailer-url');
-                const videoKey = btn.getAttribute('data-trailer-key');
-                const title = btn.getAttribute('data-trailer-title') || 'Official Trailer';
-                const watchUrl = btn.getAttribute('data-watch-url') || '#';
-
-                let finalKey = (videoKey && videoKey.length === 11) ? videoKey : null;
-                if (!finalKey && embedUrl) {
-                    const m = embedUrl.match(/(?:embed\/|v=|\/)([\w-]{11})/);
-                    if (m) finalKey = m[1];
+            const resetTrailerModal = () => {
+                if (trailerIframe) {
+                    trailerIframe.src = '';
                 }
-
-                if (finalKey) {
-                    embedUrl = `https://www.youtube.com/embed/${finalKey}?autoplay=1`;
+                if (iframeContainer) {
+                    iframeContainer.classList.add('d-none');
                 }
-
-                if (trailerTitle) trailerTitle.textContent = `${title} - Official Trailer`;
-                if (trailerWatchBtn) trailerWatchBtn.href = watchUrl;
-                if (trailerFallbackLink) trailerFallbackLink.href = watchUrl;
-
-                if (trailerFallback) trailerFallback.classList.add('d-none');
-                if (trailerIframe && embedUrl) {
-                    trailerIframe.parentElement.classList.remove('d-none');
-                    trailerIframe.src = embedUrl;
+                if (trailerFallback) {
+                    trailerFallback.classList.add('d-none');
+                }
+                if (trailerWatchBtn) {
+                    trailerWatchBtn.classList.add('d-none');
+                    trailerWatchBtn.href = '#';
                 }
             };
 
-            // Bootstrap show.bs.modal event trigger
-            trailerModalEl.addEventListener('show.bs.modal', (e) => {
-                const btn = e.relatedTarget || document.activeElement;
-                populateTrailer(btn);
-            });
+            const populateTrailer = (btn) => {
+                if (!btn) return;
+                
+                // Immediately reset to prevent playing previous movie's video
+                resetTrailerModal();
 
-            // Manual click event fallback
+                const videoKey = (btn.getAttribute('data-trailer-key') || '').trim();
+                const embedUrlAttr = (btn.getAttribute('data-trailer-url') || '').trim();
+                const title = (btn.getAttribute('data-trailer-title') || 'Official Trailer').trim();
+                const watchUrlAttr = (btn.getAttribute('data-watch-url') || '').trim();
+
+                let finalKey = null;
+                const keyRegex = /^[A-Za-z0-9_-]{11}$/;
+
+                if (videoKey && keyRegex.test(videoKey)) {
+                    finalKey = videoKey;
+                } else if (embedUrlAttr) {
+                    const match = embedUrlAttr.match(/(?:embed\/|v=|\/|youtu\.be\/)([A-Za-z0-9_-]{11})/);
+                    if (match && keyRegex.test(match[1])) {
+                        finalKey = match[1];
+                    }
+                }
+
+                if (finalKey) {
+                    const safeEmbedUrl = `https://www.youtube.com/embed/${finalKey}?autoplay=1`;
+                    const safeWatchUrl = `https://www.youtube.com/watch?v=${finalKey}`;
+
+                    if (trailerTitle) trailerTitle.textContent = `${title} - Official Trailer`;
+                    if (trailerWatchBtn) {
+                        trailerWatchBtn.href = safeWatchUrl;
+                        trailerWatchBtn.classList.remove('d-none');
+                    }
+                    if (trailerFallbackLink) trailerFallbackLink.href = safeWatchUrl;
+
+                    if (iframeContainer && trailerIframe) {
+                        iframeContainer.classList.remove('d-none');
+                        trailerIframe.src = safeEmbedUrl;
+                    }
+                } else {
+                    // No valid trailer key available for this movie
+                    if (trailerTitle) trailerTitle.textContent = `${title} - Trailer Unavailable`;
+                    if (trailerFallback) {
+                        trailerFallback.classList.remove('d-none');
+                        const msgEl = trailerFallback.querySelector('p');
+                        if (msgEl) msgEl.textContent = 'Official trailer is currently unavailable for this title.';
+                        if (trailerFallbackLink) {
+                            if (watchUrlAttr && watchUrlAttr !== '#') {
+                                trailerFallbackLink.href = watchUrlAttr;
+                                trailerFallbackLink.classList.remove('d-none');
+                            } else {
+                                trailerFallbackLink.classList.add('d-none');
+                            }
+                        }
+                    }
+                }
+            };
+
+            // Event listener on document to intercept trailer button clicks
             document.addEventListener('click', (e) => {
                 const btn = e.target.closest('.play-trailer-btn');
                 if (btn) {
@@ -289,11 +329,16 @@
                 }
             });
 
-            // Stop audio/video playback when modal is closed
-            trailerModalEl.addEventListener('hide.bs.modal', () => {
-                if (trailerIframe) {
-                    trailerIframe.src = '';
+            // Bootstrap show.bs.modal listener for relatedTarget
+            trailerModalEl.addEventListener('show.bs.modal', (e) => {
+                if (e.relatedTarget && e.relatedTarget.classList && e.relatedTarget.classList.contains('play-trailer-btn')) {
+                    populateTrailer(e.relatedTarget);
                 }
+            });
+
+            // Stop audio/video playback and reset state when modal is closed
+            trailerModalEl.addEventListener('hide.bs.modal', () => {
+                resetTrailerModal();
             });
         }
 

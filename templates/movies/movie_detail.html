@@ -111,67 +111,148 @@
 
     <!-- Theater Screening & Ticket Booking Section -->
     <div id="theaterShowtimesSection" class="card bg-card border-secondary rounded-4 p-4 mb-5 shadow-sm">
-
-
-
-        <h4 class="fw-bold mb-3 text-body">
-            <i class="fa-solid fa-building-user text-danger me-2"></i> Select Theater & Showtimes
-        </h4>
-
-        {% if shows %}
-            <div class="table-responsive">
-                <table class="table table-hover align-middle mb-0">
-                    <thead>
-                        <tr class="border-secondary text-secondary">
-                            <th>City & Theater</th>
-                            <th>Showtime</th>
-                            <th>Ticket Price</th>
-                            <th>Seats Available</th>
-                            <th class="text-end">Action</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for show in shows %}
-                            <tr class="border-secondary">
-                                <td>
-                                    <strong class="text-white d-block fs-6">{{ show.screen.theater.name }} <span class="badge bg-danger ms-1 text-uppercase">{{ show.screen.screen_type }}</span></strong>
-                                    <span class="text-secondary small"><i class="fa-solid fa-location-dot me-1 text-danger"></i> {{ show.screen.theater.city.name }} — {{ show.screen.name }} ({{ show.screen.theater.address }})</span>
-                                </td>
-                                <td>
-                                    <span class="badge bg-dark border border-danger-subtle text-danger px-3 py-2 fs-6 shadow-sm">
-                                        <i class="fa-regular fa-clock me-1"></i> {{ show.start_time|date:"M d, Y - h:i A" }}
-                                    </span>
-                                </td>
-                                <td>
-                                    <strong class="text-success fs-6">₹{{ show.base_price }}</strong>
-                                </td>
-                                <td>
-                                    {% if show.available_seats > 20 %}
-                                        <span class="badge bg-success border border-success">{{ show.available_seats }} Available</span>
-                                    {% elif show.available_seats > 0 %}
-                                        <span class="badge bg-warning text-dark">{{ show.available_seats }} Seats Left!</span>
-                                    {% else %}
-                                        <span class="badge bg-danger">Sold Out</span>
-                                    {% endif %}
-                                </td>
-                                <td class="text-end">
-                                    {% if show.is_available %}
-                                        <a href="{% url 'shows:seat_selection' show.id %}" class="btn btn-danger btn-sm px-3 fw-semibold">
-                                            Select Seats <i class="fa-solid fa-chevron-right ms-1"></i>
-                                        </a>
-                                    {% else %}
-                                        <button class="btn btn-secondary btn-sm" disabled>Sold Out</button>
-                                    {% endif %}
-                                </td>
-                            </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4 pb-3 border-bottom border-secondary border-opacity-25">
+            <div>
+                <h4 class="fw-bold mb-1 text-body">
+                    <i class="fa-solid fa-building-user text-danger me-2"></i> Select Theater & Showtimes
+                </h4>
+                <p class="text-secondary small mb-0">Browse theaters, screening auditoriums, and select your preferred showtime</p>
             </div>
+            {% if total_shows_count %}
+                <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-3 py-2 rounded-pill fs-7 fw-semibold">
+                    <i class="fa-solid fa-ticket me-1"></i> {{ total_shows_count }} showtime{{ total_shows_count|pluralize }} available
+                </span>
+            {% endif %}
+        </div>
+
+        {% if available_dates %}
+            <!-- Date Selector Tabs -->
+            <div class="mb-4">
+                <div class="d-flex align-items-center justify-content-between mb-2">
+                    <span class="text-secondary text-xs text-uppercase fw-bold tracking-wider">
+                        <i class="fa-regular fa-calendar-days me-1 text-danger"></i> Select Date:
+                    </span>
+                    {% if selected_city %}
+                        <a href="?date={{ selected_date_str }}#theaterShowtimesSection" class="text-danger small text-decoration-none">
+                            <i class="fa-solid fa-rotate-left me-1"></i> Reset City Filter
+                        </a>
+                    {% endif %}
+                </div>
+                <div class="d-flex gap-2 overflow-x-auto pb-2 scrollbar-thin">
+                    {% for d in available_dates %}
+                        <a href="?date={{ d.date_str }}{% if selected_city %}&city={{ selected_city }}{% endif %}#theaterShowtimesSection"
+                           class="btn {% if d.date == selected_date %}btn-danger text-white shadow{% else %}btn-outline-secondary bg-dark text-slate-300 border-secondary border-opacity-50{% endif %} px-3 py-2 rounded-3 text-center flex-shrink-0 text-decoration-none transition-all"
+                           style="min-width: 90px;">
+                            <div class="text-xs text-uppercase fw-bold opacity-75">{{ d.day_name }}</div>
+                            <div class="fs-5 fw-bold lh-1 my-1">{{ d.day_number }}</div>
+                            <div class="text-xs opacity-75">{{ d.month_name }}</div>
+                        </a>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- City Filter Toolbar -->
+            {% if available_cities|length > 1 %}
+                <div class="d-flex flex-wrap align-items-center gap-2 mb-4 p-3 bg-dark bg-opacity-50 rounded-3 border border-secondary border-opacity-25">
+                    <span class="text-secondary small fw-semibold me-2">
+                        <i class="fa-solid fa-location-dot text-danger me-1"></i> Filter City:
+                    </span>
+                    <a href="?date={{ selected_date_str }}#theaterShowtimesSection"
+                       class="btn btn-sm {% if not selected_city %}btn-danger text-white{% else %}btn-outline-secondary text-slate-300{% endif %} rounded-pill px-3">
+                        All Cities
+                    </a>
+                    {% for city in available_cities %}
+                        <a href="?date={{ selected_date_str }}&city={{ city.id }}#theaterShowtimesSection"
+                           class="btn btn-sm {% if selected_city == city.id|stringformat:'s' or selected_city == city.name %}btn-danger text-white{% else %}btn-outline-secondary text-slate-300{% endif %} rounded-pill px-3">
+                            {{ city.name }}
+                        </a>
+                    {% endfor %}
+                </div>
+            {% endif %}
+
+            <!-- Grouped Theaters & Showtimes List -->
+            {% if grouped_theaters %}
+                <div class="d-flex flex-column gap-4">
+                    {% for t_group in grouped_theaters %}
+                        <div class="card bg-slate-900 border border-white-10 rounded-4 p-4 shadow-sm">
+                            <!-- Theater Header -->
+                            <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3 pb-3 border-bottom border-white-10">
+                                <div>
+                                    <h5 class="fw-bold text-white mb-1">
+                                        <i class="fa-solid fa-film text-danger me-2"></i>{{ t_group.theater.name }}
+                                    </h5>
+                                    <span class="text-secondary small">
+                                        <i class="fa-solid fa-location-dot text-danger me-1"></i>{{ t_group.theater.address }}
+                                    </span>
+                                </div>
+                                <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-3 py-1.5 rounded-pill fs-7 fw-semibold">
+                                    <i class="fa-solid fa-city me-1"></i>{{ t_group.city.name }}
+                                </span>
+                            </div>
+
+                            <!-- Screens & Showtimes inside this Theater -->
+                            <div class="d-flex flex-column gap-3">
+                                {% for scr_group in t_group.screens %}
+                                    <div class="p-3 bg-slate-800 rounded-3 border border-white-10">
+                                        <!-- Screen Info -->
+                                        <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3 pb-2 border-bottom border-white-10 border-opacity-50">
+                                            <div class="d-flex align-items-center gap-2">
+                                                <span class="badge bg-danger text-uppercase fw-bold px-2 py-1">{{ scr_group.screen.screen_type }}</span>
+                                                <strong class="text-white fs-6">{{ scr_group.screen.name }}</strong>
+                                                <span class="text-secondary small">• {{ scr_group.screen_type_display }}</span>
+                                            </div>
+                                            <span class="text-secondary text-xs">{{ scr_group.shows|length }} showtime{{ scr_group.shows|length|pluralize }}</span>
+                                        </div>
+
+                                        <!-- Showtimes Chips -->
+                                        <div class="d-flex flex-wrap gap-3">
+                                            {% for show in scr_group.shows %}
+                                                <div class="showtime-card p-3 rounded-3 bg-dark border border-secondary border-opacity-50 text-center d-flex flex-column justify-content-between shadow-sm" style="min-width: 155px;">
+                                                    <div class="fw-bold text-white fs-6 mb-1">
+                                                        <i class="fa-regular fa-clock me-1 text-danger"></i>{{ show.start_time|date:"h:i A" }}
+                                                    </div>
+                                                    <div class="d-flex justify-content-center align-items-center gap-1 mb-2 text-xs">
+                                                        <span class="text-success fw-bold">₹{{ show.base_price }}</span>
+                                                        <span class="text-secondary">•</span>
+                                                        {% if show.available_seats > 20 %}
+                                                            <span class="text-success">{{ show.available_seats }} seats</span>
+                                                        {% elif show.available_seats > 0 %}
+                                                            <span class="text-warning fw-semibold">{{ show.available_seats }} left!</span>
+                                                        {% else %}
+                                                            <span class="text-danger fw-semibold">Sold Out</span>
+                                                        {% endif %}
+                                                    </div>
+
+                                                    {% if show.is_available %}
+                                                        <a href="{% url 'shows:seat_selection' show.id %}" class="btn btn-danger btn-sm py-1.5 px-3 fw-semibold rounded-2 w-100">
+                                                            Select Seats <i class="fa-solid fa-chevron-right ms-1 text-xs"></i>
+                                                        </a>
+                                                    {% else %}
+                                                        <button class="btn btn-secondary btn-sm py-1.5 px-3 rounded-2 w-100 opacity-50" disabled>Sold Out</button>
+                                                    {% endif %}
+                                                </div>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="text-center py-5 text-secondary bg-dark bg-opacity-25 rounded-4 border border-secondary border-opacity-25">
+                    <i class="fa-solid fa-calendar-xmark display-4 mb-2 text-secondary"></i>
+                    <h5 class="text-white mt-2 mb-1">No Showtimes Found</h5>
+                    <p class="mb-3 small">There are no showtimes available for {{ selected_date|date:"M d, Y" }}{% if selected_city %} in the selected city{% endif %}.</p>
+                    <a href="?#theaterShowtimesSection" class="btn btn-outline-danger btn-sm">View All Available Dates</a>
+                </div>
+            {% endif %}
+
         {% else %}
-            <div class="text-center py-4 text-secondary">
+            <div class="text-center py-5 text-secondary bg-dark bg-opacity-25 rounded-4 border border-secondary border-opacity-25">
                 <i class="fa-solid fa-calendar-xmark display-4 mb-2 text-secondary"></i>
-                <p class="mb-0">No active showtimes scheduled for this movie currently.</p>
+                <h5 class="text-white mt-2 mb-1">No Active Showtimes</h5>
+                <p class="mb-0 small">No upcoming screenings are currently scheduled for this movie.</p>
                 {% if user.is_staff %}
                     <a href="{% url 'theaters:create_show' %}" class="btn btn-outline-accent btn-sm mt-3">+ Add New Show</a>
                 {% endif %}

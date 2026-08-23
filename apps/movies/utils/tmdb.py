@@ -70,14 +70,12 @@ def get_safe_youtube_embed_url(url_or_id):
 def get_youtube_watch_url(url_or_id, title=None):
     """
     Returns a direct YouTube watch URL for external fallback playback.
+    Returns empty string if no valid video ID exists.
     """
     video_id = extract_youtube_id(url_or_id)
     if video_id:
         return f"https://www.youtube.com/watch?v={video_id}"
-    if title:
-        query = urllib.parse.quote_plus(f"{title} official trailer")
-        return f"https://www.youtube.com/results?search_query={query}"
-    return url_or_id if url_or_id else '#'
+    return ''
 
 
 _session = None
@@ -87,7 +85,7 @@ def get_tmdb_session():
     if _session is None:
         _session = requests.Session()
         from urllib3.util import Retry
-        retries = Retry(total=3, backoff_factor=0.2, status_forcelist=[500, 502, 503, 504])
+        retries = Retry(total=3, backoff_factor=0.3, status_forcelist=[500, 502, 503, 504])
         adapter = requests.adapters.HTTPAdapter(pool_connections=10, pool_maxsize=20, max_retries=retries)
         _session.mount('https://', adapter)
         _session.mount('http://', adapter)
@@ -120,7 +118,7 @@ def tmdb_request(endpoint, params=None):
             headers['Authorization'] = f"Bearer {TMDB_ACCESS_TOKEN}"
 
         session = get_tmdb_session()
-        response = session.get(url, params=params, headers=headers, timeout=8)
+        response = session.get(url, params=params, headers=headers, timeout=12)
         if response.status_code == 200:
             data = response.json()
             cache.set(cache_key, data, timeout=3600)  # Cache for 1 hour
@@ -133,16 +131,20 @@ def tmdb_request(endpoint, params=None):
 
 def _calculate_video_score(video, original_language=None):
     """
-    Calculates a relevance score for a video item to pick the primary official trailer.
-    Higher score indicates higher priority.
+    Calculates a strict relevance score for a video item to pick the primary official trailer.
+    Higher score indicates higher priority. Discards non-trailer videos.
     """
     name = str(video.get('name', '')).lower()
     vtype = str(video.get('type', ''))
     is_official = video.get('official') is True
     lang = str(video.get('iso_639_1', '')).lower()
 
-    # Discard non-YouTube or blacklisted videos
+    # Discard non-YouTube or missing key videos
     if str(video.get('site', '')).lower() != 'youtube' or not video.get('key'):
+        return -1
+
+    # Discard non-trailer video types (Clips, Featurettes, Behind the scenes, etc.)
+    if vtype not in ('Trailer', 'Teaser'):
         return -1
 
     for blocked in DISALLOWED_VIDEO_KEYWORDS:
@@ -153,30 +155,29 @@ def _calculate_video_score(video, original_language=None):
 
     # Type & Official Status Priority Hierarchy
     if vtype == 'Trailer':
-        score += 100 if is_official else 70
+        score += 1000 if is_official else 500
         if 'official trailer' in name:
-            score += 25
+            score += 100
         elif 'main trailer' in name:
-            score += 20
+            score += 75
+        elif 'final trailer' in name:
+            score += 60
         elif 'trailer' in name:
-            score += 10
+            score += 30
     elif vtype == 'Teaser':
-        score += 50 if is_official else 30
+        score += 200 if is_official else 100
         if 'official teaser' in name:
-            score += 15
+            score += 50
+        elif 'teaser trailer' in name:
+            score += 40
         elif 'teaser' in name:
-            score += 10
-    elif vtype == 'Clip':
-        score += 20 if is_official else 10
-    else:
-        # Other types (Featurette, etc.)
-        score += 5 if is_official else 0
+            score += 20
 
     # Language match bonuses
     if original_language and lang == str(original_language).lower():
-        score += 15
+        score += 50
     elif lang == 'en':
-        score += 10
+        score += 25
 
     return score
 

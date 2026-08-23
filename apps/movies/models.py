@@ -289,30 +289,31 @@ class Movie(TimeStampedModel):
         return f"{hours}h {mins}m" if hours > 0 else f"{mins}m"
 
     @property
-    def get_clean_trailer_url(self):
-        """Returns high-compatibility YouTube embed URL."""
-        from movies.utils.tmdb import get_safe_youtube_embed_url
-        if self.trailer_url:
-            clean_url = get_safe_youtube_embed_url(self.trailer_url)
-            return clean_url if clean_url else self.trailer_url
-        return ''
-
-    @property
     def trailer_youtube_key(self):
-        """Extracts the 11-character YouTube video ID from trailer_url."""
+        """Extracts and returns the validated 11-character YouTube video ID from trailer_url."""
         from movies.utils.tmdb import extract_youtube_id
         return extract_youtube_id(self.trailer_url) if self.trailer_url else ''
 
     @property
     def has_trailer(self):
-        """Returns True if a valid trailer key or URL is present."""
-        return bool(self.trailer_youtube_key or self.trailer_url)
+        """Returns True only if a valid 11-character YouTube trailer key is present."""
+        return bool(self.trailer_youtube_key)
+
+    @property
+    def get_clean_trailer_url(self):
+        """Returns high-compatibility YouTube embed URL for this movie's trailer."""
+        from movies.utils.tmdb import get_safe_youtube_embed_url
+        if self.trailer_youtube_key:
+            return get_safe_youtube_embed_url(self.trailer_youtube_key)
+        return ''
 
     @property
     def get_youtube_watch_url(self):
-        """Returns direct YouTube watch URL or official trailer search link fallback."""
+        """Returns direct YouTube watch URL for this movie's trailer."""
         from movies.utils.tmdb import get_youtube_watch_url
-        return get_youtube_watch_url(self.trailer_url, title=self.title)
+        if self.trailer_youtube_key:
+            return get_youtube_watch_url(self.trailer_youtube_key)
+        return ''
 
 
 
