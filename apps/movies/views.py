@@ -312,7 +312,7 @@ class MovieDiscoveryView(ListView):
         # 2. Robust Multi-Field Search Query (Title, Synopsis, Director, Tagline, Cast Members, Genres, Language)
         search_query = self.request.GET.get('q', '').strip()
         if search_query:
-            qs = qs.filter(
+            filter_query = (
                 Q(title__icontains=search_query) | 
                 Q(description__icontains=search_query) |
                 Q(director__icontains=search_query) |
@@ -321,6 +321,19 @@ class MovieDiscoveryView(ListView):
                 Q(genres__name__icontains=search_query) |
                 Q(language__name__icontains=search_query)
             )
+            matching_count = qs.filter(filter_query).count()
+            import sys
+            if matching_count < 3 and 'test' not in sys.argv and len(search_query) >= 2:
+                from .tmdb_service import tmdb_request, save_tmdb_movie_to_db
+                try:
+                    search_data = tmdb_request('/search/movie', {'query': search_query, 'region': 'IN'})
+                    if search_data and search_data.get('results'):
+                        for item in search_data['results'][:6]:
+                            save_tmdb_movie_to_db(item, category_name='popular', allow_category_override=False)
+                except Exception as e:
+                    logger.warning(f"Discovery TMDb search notice: {e}")
+
+            qs = qs.filter(filter_query)
 
         # 3. Multi-Facet Filters
         theatrical_cutoff = today - datetime.timedelta(days=75)
@@ -860,6 +873,7 @@ class MovieAPIDiscoveryView(View):
 class MovieSuggestionsAPIView(View):
     """
     REST API endpoint for fast live movie search suggestions & autocomplete.
+    Returns latest theatrical and popular releases in India.
     GET /api/movies/suggestions/?q=<query>&limit=8
     """
     def get(self, request):
@@ -868,21 +882,19 @@ class MovieSuggestionsAPIView(View):
 
         ensure_movies_seeded()
 
-        # Guarantee all movies have a valid language assigned
-        from .models import Language
-        def_lang = Language.objects.filter(code='en').first() or Language.objects.first()
-        if def_lang:
-            Movie.objects.filter(language__isnull=True).update(language=def_lang)
-
         query = request.GET.get('q', '').strip()
         try:
             limit = min(int(request.GET.get('limit', 8)), 20)
         except (ValueError, TypeError):
             limit = 8
 
+        now = timezone.now()
+        today = now.date()
+        theatrical_cutoff = today - datetime.timedelta(days=75)
+
         active_shows_subquery = Show.objects.filter(
             movie=OuterRef('pk'),
-            start_time__gte=timezone.now(),
+            start_time__gte=now,
             status='OPEN'
         )
 
@@ -891,7 +903,8 @@ class MovieSuggestionsAPIView(View):
             .select_related('language').prefetch_related('genres')
 
         if query:
-            qs = qs.filter(
+            # Multi-field filtering
+            filter_q = (
                 Q(title__icontains=query) |
                 Q(description__icontains=query) |
                 Q(director__icontains=query) |
@@ -899,10 +912,43 @@ class MovieSuggestionsAPIView(View):
                 Q(cast_members__name__icontains=query) |
                 Q(genres__name__icontains=query) |
                 Q(language__name__icontains=query)
-            ).distinct().order_by('-release_date', '-popularity')
+            )
+            matching_qs = qs.filter(filter_q).distinct()
+
+            # If local DB results are few and we're not in unit tests, query live TMDb search
+            import sys
+            if matching_qs.count() < 3 and 'test' not in sys.argv and len(query) >= 2:
+                from .tmdb_service import tmdb_request, save_tmdb_movie_to_db
+                try:
+                    search_data = tmdb_request('/search/movie', {'query': query, 'region': 'IN'})
+                    if search_data and search_data.get('results'):
+                        for item in search_data['results'][:6]:
+                            save_tmdb_movie_to_db(item, category_name='popular', allow_category_override=False)
+                    matching_qs = qs.filter(filter_q).distinct()
+                except Exception as e:
+                    logger.warning(f"Live search TMDb sync notice: {e}")
+
+            # Prioritize current theatrical releases in India first
+            is_current_expr = Case(
+                When(release_date__gte=theatrical_cutoff, then=Value(100)),
+                default=Value(0),
+                output_field=IntegerField()
+            )
+            title_exact_expr = Case(
+                When(title__istartswith=query, then=Value(50)),
+                default=Value(0),
+                output_field=IntegerField()
+            )
+            qs = matching_qs.annotate(
+                is_current=is_current_expr,
+                title_match=title_exact_expr
+            ).order_by('-is_current', '-title_match', '-has_active_shows', '-release_date', '-popularity')
         else:
-            # Return latest 2026/2025 releases when query is empty
-            qs = qs.filter(release_date__year__gte=2024).order_by('-release_date', '-popularity')
+            # Default empty query: Return all latest active theatrical releases in India
+            qs = qs.filter(
+                category='now_playing',
+                release_date__gte=theatrical_cutoff
+            ).order_by('-has_active_shows', '-release_date', '-popularity')
             if not qs.exists():
                 qs = Movie.objects.filter(is_active=True).order_by('-release_date', '-popularity')
 
