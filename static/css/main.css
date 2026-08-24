@@ -340,18 +340,24 @@ body {
 .form-select, select {
     color-scheme: dark;
     background-color: #1e293b !important;
-    color: #f8fafc !important;
-    border: 1px solid rgba(255, 255, 255, 0.22) !important;
+    color: #ffffff !important;
+    border: 1px solid #475569 !important;
     border-radius: 10px;
     font-weight: 500;
     cursor: pointer;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23ffffff' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e") !important;
+    background-repeat: no-repeat !important;
+    background-position: right 0.75rem center !important;
+    background-size: 16px 12px !important;
+    padding-right: 2.25rem !important;
 }
 
 [data-bs-theme="light"] .form-select, [data-bs-theme="light"] select {
     color-scheme: light;
     background-color: #ffffff !important;
     color: #0f172a !important;
-    border: 1px solid rgba(0, 0, 0, 0.22) !important;
+    border: 1px solid #cbd5e1 !important;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%230f172a' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e") !important;
 }
 
 .form-control, input, textarea {
@@ -364,7 +370,7 @@ body {
 /* Explicit native option colors across Windows / Chrome / Edge / Brave / Firefox */
 .form-select option, select option {
     background-color: #0f172a !important;
-    color: #f8fafc !important;
+    color: #ffffff !important;
     padding: 10px 14px;
     font-size: 0.95rem;
 }
@@ -375,7 +381,7 @@ body {
 }
 
 .form-select:hover, select:hover, .form-control:hover {
-    border-color: rgba(239, 68, 68, 0.6) !important;
+    border-color: rgba(239, 68, 68, 0.8) !important;
 }
 
 .form-select:focus, select:focus, .form-control:focus {
