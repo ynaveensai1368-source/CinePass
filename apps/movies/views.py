@@ -212,7 +212,7 @@ class HomeView(TemplateView):
             ).exclude(backdrop_url__isnull=True).exclude(backdrop_url='').order_by('-popularity')[:5])
         context['hero_movies'] = hero_movies
 
-        # 6. Personalized & Location Recommendations (BookMyShow discovery hierarchy)
+        # 6. Personalized & Location Recommendations (Current Theatrical & Regional Engine)
         current_user = getattr(self.request, 'user', None)
         context['recommended_movies'] = get_personalized_recommendations(
             user=current_user if (current_user and current_user.is_authenticated) else None,
@@ -221,22 +221,24 @@ class HomeView(TemplateView):
             limit=6
         )
 
-        context['popular_movies'] = base_movies.filter(category='popular').annotate(lang_priority=lang_priority_case).order_by('-has_active_shows', '-lang_priority', '-popularity', '-rating')[:6]
-        if not context['popular_movies']:
-            context['popular_movies'] = base_movies.order_by('-popularity')[:6]
+        # 7. Dedicated TMDb Trending & Popular, Top Rated, and Upcoming Sections
+        from .tmdb_service import get_homepage_popular_movies, get_homepage_top_rated_movies, get_homepage_upcoming_movies
+        context['popular_movies'] = get_homepage_popular_movies(region='IN', limit=6)
+        context['top_rated_movies'] = get_homepage_top_rated_movies(region='IN', limit=6)
+        context['upcoming_movies'] = get_homepage_upcoming_movies(region='IN', limit=6)
 
-        context['top_rated_movies'] = base_movies.filter(category='top_rated').order_by('-rating', '-popularity')[:6]
-        if not context['top_rated_movies']:
-            context['top_rated_movies'] = base_movies.order_by('-rating')[:6]
-        
-        upcoming_qs = base_movies.filter(
-            Q(category='upcoming') | Q(release_date__gt=today)
-        ).order_by('release_date', '-popularity')[:6]
-        if not upcoming_qs.exists():
-            upcoming_qs = base_movies.order_by('-release_date')[:6]
-        context['upcoming_movies'] = upcoming_qs
+        # Complete section diagnostics logging (Requirement #14)
+        logger.info(
+            f"[HOMEPAGE SECTIONS DIAGNOSTICS]\n"
+            f"  City: {current_city.name if current_city else 'All'} | Country: India | Region: IN\n"
+            f"  [Now Playing ({len(now_playing_qs)})]: {[m.title for m in now_playing_qs]}\n"
+            f"  [Recommended ({len(context['recommended_movies'])})]: {[m.title for m in context['recommended_movies']]}\n"
+            f"  [Trending & Popular ({len(context['popular_movies'])})]: {[m.title for m in context['popular_movies']]}\n"
+            f"  [Top Rated ({len(context['top_rated_movies'])})]: {[m.title for m in context['top_rated_movies']]}\n"
+            f"  [Upcoming ({len(context['upcoming_movies'])})]: {[m.title for m in context['upcoming_movies']]}"
+        )
 
-        # 7. Recently Viewed Movies
+        # 8. Recently Viewed Movies
         rv_qs = RecentlyViewed.objects.none()
         if current_user and current_user.is_authenticated:
             rv_qs = RecentlyViewed.objects.filter(user=current_user)

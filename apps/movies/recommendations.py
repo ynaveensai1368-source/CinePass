@@ -55,15 +55,21 @@ def get_city_language_priority(city):
 
 def get_personalized_recommendations(user=None, session_key=None, city=None, limit=6):
     """
-    Computes real location-based and language-aware movie recommendations.
+    Computes real location-based and language-aware movie recommendations for CURRENT releases.
     Hierarchy:
-      1. Movies currently playing or upcoming in `city`.
-      2. Regional language affinity for `city`.
-      3. Genre affinity from user booking history & recently viewed.
-      4. Exclude already booked movies.
-      5. Rank by showtime availability + language match + popularity/rating.
+      1. Genuine current theatrical releases (release_date within 75 days).
+      2. Active showtime availability in user's selected `city`.
+      3. Regional language prominence for `city` (e.g., Telugu/Hindi/English in Hyderabad, Tamil in Chennai).
+      4. Genre affinity from user booking history & recently viewed.
+      5. Exclude already booked movies.
+      6. Rank by showtime availability + language match + popularity/rating.
     """
+    import datetime
     now = timezone.now()
+    today = now.date()
+    theatrical_cutoff = today - datetime.timedelta(days=75)
+    theatrical_future_cutoff = today + datetime.timedelta(days=14)
+
     booked_movie_ids = set()
     preferred_genre_names = set()
 
@@ -98,7 +104,7 @@ def get_personalized_recommendations(user=None, session_key=None, city=None, lim
                 for mapped in GENRE_AFFINITY_MAP.get(genre.name, []):
                     preferred_genre_names.add(mapped)
 
-    # 3. Base Queryset
+    # 3. Base Queryset: Strictly CURRENT active theatrical releases
     city_shows_subquery = None
     if city:
         city_shows_subquery = Show.objects.filter(
@@ -114,7 +120,12 @@ def get_personalized_recommendations(user=None, session_key=None, city=None, lim
             status='OPEN'
         )
 
-    base_qs = Movie.objects.filter(is_active=True)\
+    base_qs = Movie.objects.filter(
+        is_active=True,
+        category='now_playing',
+        release_date__gte=theatrical_cutoff,
+        release_date__lte=theatrical_future_cutoff
+    )\
         .annotate(
             has_active_shows=Exists(city_shows_subquery),
             has_city_shows=Exists(city_shows_subquery)
@@ -124,11 +135,11 @@ def get_personalized_recommendations(user=None, session_key=None, city=None, lim
     if booked_movie_ids:
         base_qs = base_qs.exclude(id__in=booked_movie_ids)
 
-    # 4. Regional Language Priority Cases
+    # 4. Regional Language Priority Cases for the Selected City
     priority_langs = get_city_language_priority(city)
     lang_whens = []
     for idx, lcode in enumerate(priority_langs):
-        # Weight higher for primary regional languages
+        # Weight higher for primary regional languages of this city
         weight = 100 - (idx * 15)
         lang_whens.append(When(language__code=lcode, then=Value(weight)))
     
@@ -169,7 +180,7 @@ def get_personalized_recommendations(user=None, session_key=None, city=None, lim
 
     recs = list(ordered_recs[:limit])
 
-    # If count is below limit, fill with active popular movies
+    # If count is below limit, fill with active current theatrical movies
     if len(recs) < limit:
         existing_ids = {m.id for m in recs} | booked_movie_ids
         fillers = base_qs.exclude(id__in=existing_ids).order_by('-popularity', '-rating')[:(limit - len(recs))]

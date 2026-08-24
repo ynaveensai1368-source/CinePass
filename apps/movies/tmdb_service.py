@@ -93,6 +93,44 @@ def get_now_playing_movies_tmdb(page=1, region='IN'):
     return tmdb_request('/movie/now_playing', params)
 
 
+def get_trending_movies_tmdb(page=1, time_window='day'):
+    """
+    Retrieves daily trending movies from TMDb.
+    """
+    params = {'page': page}
+    return tmdb_request(f'/trending/movie/{time_window}', params)
+
+
+def get_popular_movies_tmdb(page=1, region='IN'):
+    """
+    Retrieves currently popular movies from TMDb for a specific region.
+    """
+    params = {'page': page}
+    if region:
+        params['region'] = region
+    return tmdb_request('/movie/popular', params)
+
+
+def get_top_rated_movies_tmdb(page=1, region='IN'):
+    """
+    Retrieves highest rated movies from TMDb.
+    """
+    params = {'page': page}
+    if region:
+        params['region'] = region
+    return tmdb_request('/movie/top_rated', params)
+
+
+def get_upcoming_movies_tmdb(page=1, region='IN'):
+    """
+    Retrieves upcoming theatrical releases from TMDb.
+    """
+    params = {'page': page}
+    if region:
+        params['region'] = region
+    return tmdb_request('/movie/upcoming', params)
+
+
 def get_theatrical_discover_movies_tmdb(page=1, region='IN', language=None, start_date=None, end_date=None, sort_by='popularity.desc'):
     """
     Discovers active theatrical releases from TMDb with dynamic release window and regional language support.
@@ -116,6 +154,264 @@ def get_theatrical_discover_movies_tmdb(page=1, region='IN', language=None, star
     if language:
         params['with_original_language'] = language
     return tmdb_request('/discover/movie', params)
+
+
+def save_tmdb_movie_to_db(item, category_name='popular', allow_category_override=False):
+    """
+    Saves or updates a TMDb movie item in the database with validated attributes.
+    """
+    import datetime
+    from decimal import Decimal
+    from django.utils import timezone
+    from movies.models import Movie, Language, Genre
+    from movies.utils.images import normalize_image_url
+    from movies.utils.tmdb import get_movie_trailer_url
+
+    tmdb_id = item.get('id')
+    title = item.get('title') or item.get('original_title')
+    poster_path = item.get('poster_path')
+    if not tmdb_id or not title or not poster_path:
+        return None
+
+    today = timezone.now().date()
+    release_date = None
+    if item.get('release_date'):
+        try:
+            release_date = datetime.datetime.strptime(item['release_date'], '%Y-%m-%d').date()
+        except Exception:
+            pass
+    if not release_date:
+        release_date = today
+
+    lang_code = str(item.get('original_language', 'en')).lower()
+    lang_name = INDIAN_LANG_MAP.get(lang_code, lang_code.upper())
+    lang_obj, _ = Language.objects.get_or_create(code=lang_code, defaults={'name': lang_name})
+
+    poster_url = normalize_image_url(poster_path, size='w500', is_backdrop=False)
+    backdrop_path = item.get('backdrop_path')
+    backdrop_url = normalize_image_url(backdrop_path, size='w1280', is_backdrop=True) if backdrop_path else ''
+
+    rating = Decimal(str(round(float(item.get('vote_average', 7.5)), 1)))
+    popularity = int(round(float(item.get('popularity', 50.0))))
+    description = item.get('overview') or 'No plot overview available.'
+    tagline = item.get('tagline', '')
+    existing = Movie.objects.filter(tmdb_id=tmdb_id).first()
+    trailer_url = ''
+    if existing and existing.trailer_url:
+        trailer_url = existing.trailer_url
+    elif existing is None:
+        try:
+            trailer_url = get_movie_trailer_url(tmdb_id, original_language=lang_code) or ''
+        except Exception:
+            trailer_url = ''
+
+    category = category_name
+    if existing and not allow_category_override:
+        # Preserve now_playing if already now_playing
+        if existing.category == 'now_playing':
+            category = 'now_playing'
+
+    defaults = {
+        'title': title,
+        'description': description,
+        'poster_url': poster_url,
+        'backdrop_url': backdrop_url,
+        'category': category,
+        'language': lang_obj,
+        'duration': 140,
+        'release_date': release_date,
+        'rating': rating,
+        'popularity': popularity,
+        'is_active': True,
+    }
+    if tagline:
+        defaults['tagline'] = tagline
+    if trailer_url:
+        defaults['trailer_url'] = trailer_url
+
+    movie, _ = Movie.objects.update_or_create(tmdb_id=tmdb_id, defaults=defaults)
+
+    genre_ids = item.get('genre_ids', [])
+    if genre_ids:
+        genre_objs = Genre.objects.filter(id__in=genre_ids)
+        if genre_objs.exists():
+            movie.genres.set(genre_objs)
+
+    return movie
+
+
+def sync_trending_and_popular_movies(region='IN', force=False):
+    """
+    Synchronizes genuine daily trending & popular movies from TMDb.
+    """
+    from django.utils import timezone
+    today = timezone.now().date()
+    cache_key = f"cinepass_popular_sync_{region}_{today.isoformat()}"
+    if not force and cache.get(cache_key):
+        return
+
+    logger.info(f"[PIPELINE] Synchronizing TMDb Trending & Popular Movies for Region: {region}...")
+    # Fetch trending and popular
+    results = []
+    seen = set()
+
+    for fetch_fn, args in [
+        (get_trending_movies_tmdb, {'page': 1, 'time_window': 'day'}),
+        (get_popular_movies_tmdb, {'page': 1, 'region': region}),
+        (get_popular_movies_tmdb, {'page': 2, 'region': region}),
+    ]:
+        try:
+            data = fetch_fn(**args)
+            if data and data.get('results'):
+                for item in data['results']:
+                    mid = item.get('id')
+                    if mid and mid not in seen:
+                        seen.add(mid)
+                        results.append(item)
+        except Exception as e:
+            logger.warning(f"Failed popular/trending fetch: {e}")
+
+    for item in results:
+        save_tmdb_movie_to_db(item, category_name='popular', allow_category_override=False)
+
+    cache.set(cache_key, True, timeout=7200)
+
+
+def sync_top_rated_movies(region='IN', force=False):
+    """
+    Synchronizes genuine top-rated movies from TMDb.
+    """
+    from django.utils import timezone
+    today = timezone.now().date()
+    cache_key = f"cinepass_top_rated_sync_{region}_{today.isoformat()}"
+    if not force and cache.get(cache_key):
+        return
+
+    logger.info(f"[PIPELINE] Synchronizing TMDb Top Rated Movies for Region: {region}...")
+    results = []
+    seen = set()
+
+    for fetch_args in [{'page': 1, 'region': region}, {'page': 1, 'region': None}]:
+        try:
+            data = get_top_rated_movies_tmdb(**fetch_args)
+            if data and data.get('results'):
+                for item in data['results']:
+                    mid = item.get('id')
+                    if mid and mid not in seen:
+                        seen.add(mid)
+                        results.append(item)
+        except Exception as e:
+            logger.warning(f"Failed top_rated fetch: {e}")
+
+    for item in results:
+        save_tmdb_movie_to_db(item, category_name='top_rated', allow_category_override=False)
+
+    cache.set(cache_key, True, timeout=7200)
+
+
+def sync_upcoming_movies(region='IN', force=False):
+    """
+    Synchronizes genuine upcoming movies from TMDb.
+    """
+    from django.utils import timezone
+    today = timezone.now().date()
+    cache_key = f"cinepass_upcoming_sync_{region}_{today.isoformat()}"
+    if not force and cache.get(cache_key):
+        return
+
+    logger.info(f"[PIPELINE] Synchronizing TMDb Upcoming Releases for Region: {region}...")
+    results = []
+    seen = set()
+
+    for page_num in range(1, 3):
+        try:
+            data = get_upcoming_movies_tmdb(page=page_num, region=region)
+            if data and data.get('results'):
+                for item in data['results']:
+                    mid = item.get('id')
+                    if mid and mid not in seen:
+                        seen.add(mid)
+                        results.append(item)
+        except Exception as e:
+            logger.warning(f"Failed upcoming fetch: {e}")
+
+    for item in results:
+        save_tmdb_movie_to_db(item, category_name='upcoming', allow_category_override=True)
+
+    cache.set(cache_key, True, timeout=7200)
+
+
+def get_homepage_popular_movies(region='IN', limit=6):
+    """
+    Retrieves genuine TMDb trending and popular movies for the homepage.
+    """
+    from movies.models import Movie
+    import sys
+    if 'test' not in sys.argv:
+        try:
+            sync_trending_and_popular_movies(region=region)
+        except Exception as e:
+            logger.warning(f"Popular sync notice: {e}")
+
+    # Prioritize movies synced with high TMDb popularity
+    qs = Movie.objects.filter(
+        is_active=True
+    ).exclude(
+        poster_url__isnull=True
+    ).exclude(
+        poster_url=''
+    ).order_by('-popularity', '-rating')
+    return list(qs[:limit])
+
+
+def get_homepage_top_rated_movies(region='IN', limit=6):
+    """
+    Retrieves genuine TMDb top-rated masterpieces for the homepage.
+    """
+    from movies.models import Movie
+    import sys
+    if 'test' not in sys.argv:
+        try:
+            sync_top_rated_movies(region=region)
+        except Exception as e:
+            logger.warning(f"Top rated sync notice: {e}")
+
+    qs = Movie.objects.filter(
+        is_active=True,
+        rating__gte=8.0
+    ).exclude(
+        poster_url__isnull=True
+    ).exclude(
+        poster_url=''
+    ).order_by('-rating', '-popularity')
+    return list(qs[:limit])
+
+
+def get_homepage_upcoming_movies(region='IN', limit=6):
+    """
+    Retrieves genuine TMDb upcoming theatrical releases for the homepage.
+    """
+    from movies.models import Movie
+    from django.utils import timezone
+    today = timezone.now().date()
+    import sys
+    if 'test' not in sys.argv:
+        try:
+            sync_upcoming_movies(region=region)
+        except Exception as e:
+            logger.warning(f"Upcoming sync notice: {e}")
+
+    qs = Movie.objects.filter(
+        is_active=True,
+        release_date__gt=today
+    ).exclude(
+        poster_url__isnull=True
+    ).exclude(
+        poster_url=''
+    ).order_by('release_date', '-popularity')
+    if not qs.exists():
+        qs = Movie.objects.filter(is_active=True, category='upcoming').order_by('-release_date')
+    return list(qs[:limit])
 
 
 def sync_current_theatrical_catalog(force=False):
@@ -224,8 +520,15 @@ def sync_current_theatrical_catalog(force=False):
         popularity = int(round(float(item.get('popularity', 50.0))))
         description = item.get('overview') or 'No plot overview available.'
         tagline = item.get('tagline', '')
-
-        trailer_url = get_movie_trailer_url(tmdb_id, original_language=lang_code) or ''
+        existing_m = Movie.objects.filter(tmdb_id=tmdb_id).first()
+        trailer_url = ''
+        if existing_m and existing_m.trailer_url:
+            trailer_url = existing_m.trailer_url
+        elif len(current_movie_objs) <= 15:
+            try:
+                trailer_url = get_movie_trailer_url(tmdb_id, original_language=lang_code) or ''
+            except Exception:
+                trailer_url = ''
 
         defaults = {
             'title': title,
@@ -403,29 +706,29 @@ def generate_theatrical_shows_for_cities(movies_list=None):
                     except Exception:
                         pass
 
-                # Schedule shows across 3 days
-                for m_idx, movie in enumerate(city_movies):
-                    for day_offset in range(3):
-                        for hour_val in [11, 14, 18, 21]:
-                            show_time = (now + datetime.timedelta(days=day_offset)).replace(hour=hour_val, minute=0, second=0)
-                            if show_time < timezone.now():
-                                continue
-                            end_time = show_time + datetime.timedelta(minutes=movie.duration + 20)
-                            price = prices[(m_idx + s_num) % len(prices)]
-                            show_obj, created = Show.objects.get_or_create(
-                                screen=screen_obj,
-                                start_time=show_time,
-                                defaults={
-                                    'movie': movie,
-                                    'language': movie.language,
-                                    'end_time': end_time,
-                                    'base_price': price,
-                                    'available_seats': screen_obj.total_seats,
-                                    'status': 'OPEN'
-                                }
-                            )
-                            if created:
-                                shows_created += 1
+                # Schedule shows across 3 days (1 movie per screen slot)
+                for day_offset in range(3):
+                    for slot_idx, hour_val in enumerate([11, 14, 18, 21]):
+                        show_time = (now + datetime.timedelta(days=day_offset)).replace(hour=hour_val, minute=0, second=0)
+                        if show_time < timezone.now():
+                            continue
+                        movie = city_movies[(s_num + day_offset + slot_idx) % len(city_movies)]
+                        end_time = show_time + datetime.timedelta(minutes=movie.duration + 20)
+                        price = prices[(slot_idx + s_num) % len(prices)]
+                        show_obj, created = Show.objects.get_or_create(
+                            screen=screen_obj,
+                            start_time=show_time,
+                            defaults={
+                                'movie': movie,
+                                'language': movie.language,
+                                'end_time': end_time,
+                                'base_price': price,
+                                'available_seats': screen_obj.total_seats,
+                                'status': 'OPEN'
+                            }
+                        )
+                        if created:
+                            shows_created += 1
 
     return shows_created
 

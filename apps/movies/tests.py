@@ -34,15 +34,17 @@ class MovieDiscoverySystemTests(TestCase):
         self.theater = Theater.objects.create(name='Grand Cinema', city=self.city, address='123 Main St')
         self.screen = Screen.objects.create(theater=self.theater, name='Audi 1', total_seats=100)
 
-        # Create Movies
+        # Create Movies (Current Active Releases)
+        today = timezone.now().date()
         self.movie1 = Movie.objects.create(
             title='Inception',
             description='Mind bending thriller',
             language=self.lang,
             duration=148,
-            release_date=datetime.date(2010, 7, 16),
+            release_date=today,
             rating=8.8,
             popularity=95,
+            category='now_playing',
             poster_url='https://image.tmdb.org/t/p/w500/inception.jpg'
         )
         self.movie1.genres.add(self.action, self.sci_fi)
@@ -52,9 +54,10 @@ class MovieDiscoverySystemTests(TestCase):
             description='Space exploration sci-fi',
             language=self.lang,
             duration=169,
-            release_date=datetime.date(2014, 11, 7),
+            release_date=today,
             rating=8.6,
             popularity=90,
+            category='now_playing',
             poster_url='https://image.tmdb.org/t/p/w500/interstellar.jpg'
         )
         self.movie2.genres.add(self.sci_fi)
@@ -364,20 +367,23 @@ class MovieDiscoverySystemTests(TestCase):
         hyd_screen = Screen.objects.create(theater=hyd_theater, name='Screen 1', total_seats=100)
         chn_screen = Screen.objects.create(theater=chn_theater, name='Screen 1', total_seats=100)
 
+        today = timezone.now().date()
         telugu_movie = Movie.objects.create(
             title='Telugu Blockbuster',
             language=telugu_lang,
             duration=150,
-            release_date=datetime.date(2025, 5, 1),
+            release_date=today,
             popularity=80,
+            category='now_playing',
             rating=8.5
         )
         tamil_movie = Movie.objects.create(
             title='Tamil Blockbuster',
             language=tamil_lang,
             duration=150,
-            release_date=datetime.date(2025, 5, 1),
+            release_date=today,
             popularity=80,
+            category='now_playing',
             rating=8.5
         )
 
