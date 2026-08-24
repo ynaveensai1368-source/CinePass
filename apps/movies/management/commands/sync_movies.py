@@ -103,40 +103,18 @@ class Command(BaseCommand):
         # 1. Sync TMDb Genres Taxonomy
         self.sync_genres()
 
-        total_imported = 0
+        # 2. Sync Real-Time TMDb Theatrical Categories
+        from movies.tmdb_service import sync_current_theatrical_catalog
+        total_imported = sync_current_theatrical_catalog(force=True)
 
-        if not repair_only:
-            # 2. Sync Real-Time TMDb Theatrical Categories
-            categories = [
-                ('now_playing', '/movie/now_playing'),
-                ('popular', '/movie/popular'),
-                ('top_rated', '/movie/top_rated'),
-                ('upcoming', '/movie/upcoming'),
-            ]
-
-            for category_name, endpoint in categories:
-                # Primary fetch with region='IN' for localized theatrical releases
-                for page in range(1, pages + 1):
-                    imported = self.import_category_page(category_name, endpoint, page, region='IN')
-                    total_imported += imported
-
-                # Global fallback fetch for blockbuster international releases
-                for page in range(1, pages + 1):
-                    imported = self.import_category_page(category_name, endpoint, page, region=None)
-                    total_imported += imported
-
-            # 3. Discover latest Indian regional releases (Hindi, Telugu, Tamil, Malayalam, Kannada)
-            regional_count = self.import_indian_regional_movies(pages=pages)
-            total_imported += regional_count
-
-        # 4. Repair any existing movies with missing artwork or details
+        # 3. Repair any existing movies with missing artwork or details
         repaired_count = self.repair_existing_movies()
 
-        # 5. Generate / Update Indian city theaters, screens, seats, and active showtimes
+        # 4. Generate / Update Indian city theaters, screens, seats, and active showtimes
         shows_count = self.generate_theater_shows()
 
         self.stdout.write(self.success(
-            f"Synchronization Complete: {total_imported} movies synced, {repaired_count} movies repaired, {shows_count} active shows scheduled."
+            f"Synchronization Complete: {total_imported} current theatrical movies synced, {repaired_count} movies repaired, {shows_count} active shows scheduled."
         ))
 
     def sync_genres(self):
@@ -381,15 +359,16 @@ class Command(BaseCommand):
         if not all_screens:
             return 0
 
-        # Schedule shows for now_playing or recent active movies
+        # Schedule shows strictly for active now_playing movies within theatrical window
+        theatrical_cutoff = today - datetime.timedelta(days=75)
         current_movies = list(Movie.objects.filter(
-            is_active=True
-        ).filter(
-            Q(category='now_playing') | Q(release_date__gte=ninety_days_ago)
+            is_active=True,
+            category='now_playing',
+            release_date__gte=theatrical_cutoff
         ).exclude(poster_url__isnull=True).exclude(poster_url=''))
 
         if not current_movies:
-            current_movies = list(Movie.objects.filter(is_active=True).exclude(poster_url__isnull=True).exclude(poster_url='')[:15])
+            current_movies = list(Movie.objects.filter(is_active=True, category='now_playing').exclude(poster_url__isnull=True).exclude(poster_url='')[:15])
 
         shows_created = 0
         prices = [Decimal('220.00'), Decimal('250.00'), Decimal('300.00'), Decimal('350.00')]
@@ -406,6 +385,7 @@ class Command(BaseCommand):
                         start_time=stime,
                         defaults={
                             'movie': movie,
+                            'language': movie.language,
                             'end_time': etime,
                             'base_price': price,
                             'available_seats': screen.total_seats,

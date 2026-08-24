@@ -65,14 +65,13 @@
     {% endif %}
 
     <!-- Now Playing Section (Location-Aware BookMyShow Style) -->
-    {% if now_playing %}
     <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mb-3">
         <div>
             <h3 class="fw-bold mb-0 text-white d-flex align-items-center gap-2">
                 <i class="fa-solid fa-play-circle text-danger"></i> 
-                <span>Now Playing in <span class="text-danger">{{ current_city.name|default:"Theaters" }}</span></span>
+                <span>Now Playing in <span class="text-danger">{{ current_city.name|default:"India" }}</span></span>
             </h3>
-            <p class="text-secondary small mb-0">Active screenings, regional releases, and showtimes near you</p>
+            <p class="text-secondary small mb-0">Movies currently playing or recently released in India</p>
         </div>
         <div class="d-flex align-items-center gap-2">
             <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill text-white-80 small px-3 py-1" data-bs-toggle="modal" data-bs-target="#locationModal">
@@ -112,15 +111,14 @@
     {% else %}
         <div class="card bg-slate-900 border border-secondary border-opacity-25 rounded-4 p-5 text-center mb-5 text-secondary">
             <i class="fa-solid fa-film display-5 text-danger opacity-50 mb-3"></i>
-            <h5 class="text-white mb-2">No {{ selected_language_obj.name|default:"" }} Movies Currently Playing in {{ current_city.name }}</h5>
-            <p class="small text-secondary mb-3">There are no screenings matching your selected language filter at this time.</p>
+            <h5 class="text-white mb-2">No {% if selected_language_obj %}{{ selected_language_obj.name }} {% endif %}Movies Currently Playing in {{ current_city.name|default:"India" }}</h5>
+            <p class="small text-secondary mb-3">There are no screenings matching your selected filter at this time. Live catalog updates frequently.</p>
             <div class="d-flex justify-content-center gap-2">
                 <a href="?{% if current_city_id %}city={{ current_city_id }}{% endif %}" class="btn btn-outline-danger btn-sm rounded-pill px-4">
                     <i class="fa-solid fa-rotate-left me-1"></i> View All Languages
                 </a>
             </div>
         </div>
-    {% endif %}
     {% endif %}
 
     <!-- Recommended For You Section -->

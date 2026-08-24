@@ -129,7 +129,7 @@ def seed_production_catalog():
             'release_date': datetime.date(2024, 6, 27),
             'rating': Decimal('8.5'),
             'popularity': 100,
-            'category': 'now_playing',
+            'category': 'popular',
             'certificate': 'UA',
             'poster_url': 'https://image.tmdb.org/t/p/w500/rstcAnBeCkxNQjNp3YXrF6IP1tW.jpg',
             'backdrop_url': 'https://image.tmdb.org/t/p/w1280/o8XSR1SONnjcsv84NRu6Mwsl5io.jpg',
@@ -146,7 +146,7 @@ def seed_production_catalog():
             'release_date': datetime.date(2024, 9, 27),
             'rating': Decimal('8.2'),
             'popularity': 98,
-            'category': 'now_playing',
+            'category': 'popular',
             'certificate': 'A',
             'poster_url': 'https://image.tmdb.org/t/p/w500/lQfuaXjANoTsdx5iS0gCXlK9D2L.jpg',
             'backdrop_url': 'https://image.tmdb.org/t/p/w1280/hAQnXxOwCjgYcKRgTdYPRC8neqL.jpg',
@@ -163,7 +163,7 @@ def seed_production_catalog():
             'release_date': datetime.date(2024, 12, 5),
             'rating': Decimal('8.7'),
             'popularity': 99,
-            'category': 'now_playing',
+            'category': 'popular',
             'certificate': 'UA',
             'poster_url': 'https://image.tmdb.org/t/p/w500/7HeMz4qskfnoHeZxp6oV4xCjqZs.jpg',
             'backdrop_url': 'https://image.tmdb.org/t/p/w500/5nEyyLkElpD7zkqh41aSkTCchcc.jpg',
@@ -216,7 +216,7 @@ def seed_production_catalog():
             'release_date': datetime.date(2024, 9, 5),
             'rating': Decimal('8.3'),
             'popularity': 97,
-            'category': 'now_playing',
+            'category': 'popular',
             'certificate': 'UA',
             'poster_url': 'https://image.tmdb.org/t/p/w500/kk9SmNt6QcP5thvSYELWvO0NWuC.jpg',
             'backdrop_url': 'https://image.tmdb.org/t/p/w1280/wuHD3SiccbQvHUT1LE9o8j9dJlU.jpg',
@@ -250,7 +250,7 @@ def seed_production_catalog():
             'release_date': datetime.date(2024, 10, 31),
             'rating': Decimal('8.8'),
             'popularity': 98,
-            'category': 'now_playing',
+            'category': 'popular',
             'certificate': 'UA',
             'poster_url': 'https://image.tmdb.org/t/p/w500/eCB06m1KUGilEOlIzb40nkQhVY0.jpg',
             'backdrop_url': 'https://image.tmdb.org/t/p/w1280/7cNE2qydew1c8fqnlhWjkE3DHc2.jpg',
@@ -286,7 +286,7 @@ def seed_production_catalog():
             'release_date': datetime.date(2024, 8, 15),
             'rating': Decimal('8.6'),
             'popularity': 99,
-            'category': 'now_playing',
+            'category': 'popular',
             'certificate': 'UA',
             'poster_url': 'https://image.tmdb.org/t/p/w500/nfnhwfUEFuSOxxf4jDdBlY6Lccw.jpg',
             'backdrop_url': 'https://image.tmdb.org/t/p/w1280/fVV0A67kDjTTQ4CvUn8LoletRmI.jpg',
@@ -356,7 +356,7 @@ def seed_production_catalog():
             'release_date': datetime.date(2024, 2, 22),
             'rating': Decimal('8.9'),
             'popularity': 98,
-            'category': 'now_playing',
+            'category': 'popular',
             'certificate': 'U',
             'poster_url': 'https://image.tmdb.org/t/p/w500/bswrtewwthpsh6nABiqKevU4UBI.jpg',
             'backdrop_url': 'https://image.tmdb.org/t/p/w1280/zGsHpuMN412VyzJZZnQeq4lMdjF.jpg',
@@ -373,7 +373,7 @@ def seed_production_catalog():
             'release_date': datetime.date(2024, 4, 11),
             'rating': Decimal('8.7'),
             'popularity': 97,
-            'category': 'now_playing',
+            'category': 'popular',
             'certificate': 'UA',
             'poster_url': 'https://image.tmdb.org/t/p/w500/k5RWPaNjgRcNvGoawYaQHQwyctI.jpg',
             'backdrop_url': 'https://image.tmdb.org/t/p/w1280/6WxEPaZGFWmQegUmseoGtlTKtQq.jpg',
@@ -462,7 +462,7 @@ def seed_production_catalog():
             'release_date': datetime.date(2024, 7, 26),
             'rating': Decimal('8.3'),
             'popularity': 98,
-            'category': 'now_playing',
+            'category': 'popular',
             'certificate': 'A',
             'poster_url': 'https://image.tmdb.org/t/p/w500/8cdWjvZQUExUUTzyp4t6EDMubfO.jpg',
             'backdrop_url': 'https://image.tmdb.org/t/p/w1280/by8z9Fe8y7p4jo2YlW2SZDnptyT.jpg',
@@ -479,7 +479,7 @@ def seed_production_catalog():
             'release_date': datetime.date(2024, 3, 1),
             'rating': Decimal('8.8'),
             'popularity': 99,
-            'category': 'now_playing',
+            'category': 'top_rated',
             'certificate': 'UA',
             'poster_url': 'https://image.tmdb.org/t/p/w500/6izwz7rsy95ARzTR3poZ8H6c5pp.jpg',
             'backdrop_url': 'https://image.tmdb.org/t/p/w1280/eZ239CUp1d6OryZEBPnO2n87gMG.jpg',
@@ -496,7 +496,7 @@ def seed_production_catalog():
             'release_date': datetime.date(2024, 11, 15),
             'rating': Decimal('8.6'),
             'popularity': 97,
-            'category': 'now_playing',
+            'category': 'popular',
             'certificate': 'A',
             'poster_url': 'https://image.tmdb.org/t/p/w500/2cxhvwyEwRlysAmRH4iodkvo0z5.jpg',
             'backdrop_url': 'https://image.tmdb.org/t/p/w1280/tOqIwliWMovSIZ9DyvHcHI7p2im.jpg',
@@ -795,22 +795,26 @@ def seed_production_catalog():
         c_name = city_obj.name
         preferred_lang_codes = city_lang_map.get(c_name, ['en', 'hi', 'te', 'ta'])
 
-        # Pick active movies for this city: Prioritize local regional languages + top pan-India blockbusters + Hollywood
+        # Pick active movies for this city: Strictly CURRENT theatrical releases
+        today = timezone.now().date()
+        theatrical_cutoff = today - datetime.timedelta(days=75)
         city_movies = []
         for m in created_movies:
             m_lang_code = m.language.code if m.language else 'en'
-            # Check if movie language matches city preference or is popular
-            if m_lang_code in preferred_lang_codes or m.popularity >= 95 or m.category == 'now_playing':
-                city_movies.append(m)
+            if m.category == 'now_playing' and m.release_date and m.release_date >= theatrical_cutoff:
+                if m_lang_code in preferred_lang_codes or m_lang_code == 'en':
+                    city_movies.append(m)
 
         if not city_movies:
-            city_movies = created_movies[:10]
+            city_movies = [m for m in created_movies if m.category == 'now_playing' and m.release_date and m.release_date >= theatrical_cutoff]
 
         # Schedule shows across 5 days (Day 0 = Today, Day 1 = Tomorrow, Day 2, Day 3, Day 4)
         for day_offset in range(5):
             show_date = base_date + datetime.timedelta(days=day_offset)
 
             for scr_idx, screen in enumerate(screens):
+                if not city_movies:
+                    break
                 # Assign movie to screen (rotating across days and screens)
                 assigned_movie = city_movies[(scr_idx + day_offset) % len(city_movies)]
 
@@ -876,6 +880,13 @@ def seed_production_catalog():
 
                     except Exception as e:
                         logger.warning(f"Show creation notice: {e}")
+
+    # 7. Also synchronize genuine live TMDb releases and clean up stale shows
+    try:
+        from .tmdb_service import sync_current_theatrical_catalog
+        sync_current_theatrical_catalog(force=True)
+    except Exception as e:
+        logger.warning(f"Live TMDb theatrical sync during seeding notice: {e}")
 
     logger.info(f"CinePass catalog seeded: {len(created_movies)} authentic movies, {total_shows_created} shows created.")
     return len(created_movies)

@@ -26,9 +26,13 @@ _seeded = False
 
 
 def ensure_movies_seeded():
-    """Defensive non-blocking helper ensuring database has latest 2026/2025 movie catalog populated."""
+    """Defensive non-blocking helper ensuring database has latest movie catalog populated."""
     global _seeded
     if _seeded:
+        return
+    import sys
+    if 'test' in sys.argv:
+        _seeded = True
         return
     if not _seeding_lock.acquire(blocking=False):
         return
@@ -79,6 +83,16 @@ class HomeView(TemplateView):
 
         now = timezone.now()
         today = now.date()
+        theatrical_cutoff = today - datetime.timedelta(days=75)
+
+        # 0. Ensure fresh TMDb theatrical synchronization (cached)
+        import sys
+        if 'test' not in sys.argv:
+            from .tmdb_service import sync_current_theatrical_catalog
+            try:
+                sync_current_theatrical_catalog()
+            except Exception as e:
+                logger.warning(f"Live theatrical sync notice: {e}")
 
         # 1. Resolve Active City (Single reliable source of truth)
         current_city = context.get('current_city')
@@ -117,7 +131,7 @@ class HomeView(TemplateView):
         lang_whens = [When(language__code=lcode, then=Value(100 - (i * 15))) for i, lcode in enumerate(priority_langs)]
         lang_priority_case = Case(*lang_whens, default=Value(10), output_field=IntegerField())
 
-        # 4. Now Playing in Theaters: Specifically movies currently running in the user's selected city!
+        # 4. Now Playing in Theaters: Specifically CURRENT theatrical releases running in the user's selected city!
         selected_lang_param = self.request.GET.get('language', '').strip()
         selected_lang_obj = None
         if selected_lang_param:
@@ -128,6 +142,8 @@ class HomeView(TemplateView):
 
         if current_city:
             now_playing_city_qs = base_movies.filter(
+                category='now_playing',
+                release_date__gte=theatrical_cutoff,
                 has_active_shows=True
             )
             if selected_lang_obj:
@@ -140,7 +156,7 @@ class HomeView(TemplateView):
             ).order_by('-lang_priority', '-release_date', '-popularity')[:12]
 
             now_playing_list = list(now_playing_city_qs)
-            # If city has no active theatrical shows (and no language filter active), fallback to active shows in any city
+            # If city has no active theatrical shows (and no language filter active), fallback to current active shows in any city
             if not now_playing_list and not selected_lang_param:
                 any_shows_subquery = Show.objects.filter(
                     movie=OuterRef('pk'),
@@ -148,20 +164,40 @@ class HomeView(TemplateView):
                     status='OPEN',
                     available_seats__gt=0
                 )
-                fallback_qs = Movie.objects.filter(is_active=True)\
+                fallback_qs = Movie.objects.filter(
+                    is_active=True,
+                    category='now_playing',
+                    release_date__gte=theatrical_cutoff
+                )\
                     .annotate(has_active_shows=Exists(any_shows_subquery))\
                     .filter(has_active_shows=True)\
                     .select_related('language').prefetch_related('genres')\
-                    .order_by('-release_date', '-popularity')[:8]
+                    .order_by('-release_date', '-popularity')[:12]
                 now_playing_list = list(fallback_qs)
             now_playing_qs = now_playing_list
         else:
-            now_playing_qs = base_movies.filter(has_active_shows=True)
+            now_playing_qs = base_movies.filter(
+                category='now_playing',
+                release_date__gte=theatrical_cutoff,
+                has_active_shows=True
+            )
             if selected_lang_obj:
                 now_playing_qs = now_playing_qs.filter(
                     Q(language=selected_lang_obj) | Q(shows__language=selected_lang_obj)
                 ).distinct()
-            now_playing_qs = list(now_playing_qs.order_by('-release_date', '-popularity')[:8])
+            now_playing_qs = list(now_playing_qs.order_by('-release_date', '-popularity')[:12])
+
+        # Pipeline diagnostic logging (Requirement #16)
+        logger.info(
+            f"[PIPELINE DEBUG]\n"
+            f"  Location: {current_city.name if current_city else 'All'}\n"
+            f"  Country: India\n"
+            f"  TMDB region: IN\n"
+            f"  Source: TMDB Now Playing & Theatrical Discovery\n"
+            f"  Theatrical Cutoff: {theatrical_cutoff}\n"
+            f"  Selected Language: {selected_lang_obj.name if selected_lang_obj else (selected_lang_param or 'All Languages')}\n"
+            f"  Final movies ({len(now_playing_qs)}): {[m.title for m in now_playing_qs]}"
+        )
 
         context['now_playing'] = now_playing_qs
         context['selected_language'] = selected_lang_param
@@ -170,19 +206,28 @@ class HomeView(TemplateView):
         # 5. Hero Banner Carousel: High-res backdrops of top movies available in current city or top blockbusters
         hero_movies = [m for m in now_playing_qs if m.backdrop_url][:5]
         if not hero_movies:
-            hero_movies = list(base_movies.filter(release_date__year__gte=2024).exclude(backdrop_url__isnull=True).exclude(backdrop_url='').order_by('-popularity')[:5])
+            hero_movies = list(base_movies.filter(
+                category='now_playing',
+                release_date__gte=theatrical_cutoff
+            ).exclude(backdrop_url__isnull=True).exclude(backdrop_url='').order_by('-popularity')[:5])
         context['hero_movies'] = hero_movies
 
         # 6. Personalized & Location Recommendations (BookMyShow discovery hierarchy)
+        current_user = getattr(self.request, 'user', None)
         context['recommended_movies'] = get_personalized_recommendations(
-            user=self.request.user if self.request.user.is_authenticated else None,
+            user=current_user if (current_user and current_user.is_authenticated) else None,
             session_key=session_key,
             city=current_city,
             limit=6
         )
 
-        context['popular_movies'] = base_movies.annotate(lang_priority=lang_priority_case).order_by('-has_active_shows', '-lang_priority', '-popularity', '-rating')[:6]
-        context['top_rated_movies'] = base_movies.order_by('-rating', '-popularity')[:6]
+        context['popular_movies'] = base_movies.filter(category='popular').annotate(lang_priority=lang_priority_case).order_by('-has_active_shows', '-lang_priority', '-popularity', '-rating')[:6]
+        if not context['popular_movies']:
+            context['popular_movies'] = base_movies.order_by('-popularity')[:6]
+
+        context['top_rated_movies'] = base_movies.filter(category='top_rated').order_by('-rating', '-popularity')[:6]
+        if not context['top_rated_movies']:
+            context['top_rated_movies'] = base_movies.order_by('-rating')[:6]
         
         upcoming_qs = base_movies.filter(
             Q(category='upcoming') | Q(release_date__gt=today)
@@ -193,8 +238,8 @@ class HomeView(TemplateView):
 
         # 7. Recently Viewed Movies
         rv_qs = RecentlyViewed.objects.none()
-        if self.request.user.is_authenticated:
-            rv_qs = RecentlyViewed.objects.filter(user=self.request.user)
+        if current_user and current_user.is_authenticated:
+            rv_qs = RecentlyViewed.objects.filter(user=current_user)
         elif session_key:
             rv_qs = RecentlyViewed.objects.filter(session_key=session_key)
 
@@ -202,23 +247,31 @@ class HomeView(TemplateView):
             rv.movie for rv in rv_qs.select_related('movie__language').prefetch_related('movie__genres')[:6]
         ]
 
-        # 8. Real Languages Available with Active Screenings in this City
+        # 8. Available Languages in Theatrical Releases for Quick Filter Pills
+        lang_ids = set()
         if current_city:
             city_show_languages = Show.objects.filter(
                 screen__theater__city=current_city,
                 start_time__gte=now,
                 status='OPEN'
             ).values_list('language_id', 'movie__language_id')
-            lang_ids = set()
             for l_id, ml_id in city_show_languages:
                 if l_id:
                     lang_ids.add(l_id)
                 elif ml_id:
                     lang_ids.add(ml_id)
-            context['city_languages'] = Language.objects.filter(id__in=lang_ids).order_by('name')
-        else:
-            context['city_languages'] = Language.objects.all().order_by('name')
 
+        # Also include languages of all active now_playing movies in the country
+        np_lang_ids = Movie.objects.filter(
+            is_active=True,
+            category='now_playing',
+            release_date__gte=theatrical_cutoff
+        ).values_list('language_id', flat=True).distinct()
+        for lid in np_lang_ids:
+            if lid:
+                lang_ids.add(lid)
+
+        context['city_languages'] = Language.objects.filter(id__in=lang_ids).order_by('name')
         context['cities'] = City.objects.filter(theaters__isnull=False).distinct().order_by('name')
         return context
 
@@ -290,9 +343,11 @@ class MovieDiscoveryView(ListView):
             )
 
         # 3. Multi-Facet Filters
+        theatrical_cutoff = today - datetime.timedelta(days=75)
         category = self.request.GET.get('category', '').strip()
         if category:
             if category == 'now_playing':
+                qs = qs.filter(category='now_playing', release_date__gte=theatrical_cutoff)
                 if city_obj:
                     qs = qs.filter(shows__screen__theater__city=city_obj, shows__start_time__gte=now, shows__status='OPEN')
                 else:

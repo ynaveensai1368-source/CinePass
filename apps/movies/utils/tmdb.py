@@ -12,7 +12,13 @@ from django.core.cache import cache
 
 logger = logging.getLogger(__name__)
 
-TMDB_BASE_URL = getattr(settings, 'TMDB_BASE_URL', 'https://api.themoviedb.org/3')
+TMDB_BASE_URLS = [
+    'https://api.tmdb.org/3',
+    getattr(settings, 'TMDB_BASE_URL', 'https://api.themoviedb.org/3'),
+]
+# Remove duplicates while preserving order
+TMDB_BASE_URLS = list(dict.fromkeys(TMDB_BASE_URLS))
+
 TMDB_API_KEY = getattr(settings, 'TMDB_API_KEY', '')
 TMDB_ACCESS_TOKEN = getattr(settings, 'TMDB_ACCESS_TOKEN', '')
 
@@ -84,48 +90,68 @@ def get_tmdb_session():
     global _session
     if _session is None:
         _session = requests.Session()
+        _session.headers.update({
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+            'Accept': 'application/json',
+            'Accept-Encoding': 'gzip, deflate',
+        })
         from urllib3.util import Retry
-        retries = Retry(total=3, backoff_factor=0.3, status_forcelist=[500, 502, 503, 504])
+        retries = Retry(total=2, backoff_factor=0.3, status_forcelist=[500, 502, 503, 504])
         adapter = requests.adapters.HTTPAdapter(pool_connections=10, pool_maxsize=20, max_retries=retries)
         _session.mount('https://', adapter)
         _session.mount('http://', adapter)
     return _session
 
 
-def tmdb_request(endpoint, params=None):
+def tmdb_request(endpoint, params=None, timeout=10):
     """
-    Executes a cached HTTP GET request to TMDB API endpoints with sanitized cache keys.
+    Executes a cached HTTP GET request to TMDB API endpoints with multi-domain failover and sanitized cache keys.
     """
     if params is None:
         params = {}
 
+    req_params = dict(params)
     if TMDB_API_KEY:
-        params['api_key'] = TMDB_API_KEY
+        req_params['api_key'] = TMDB_API_KEY
 
-    param_str = '&'.join(f"{k}={v}" for k, v in sorted(params.items()))
+    param_str = '&'.join(f"{k}={v}" for k, v in sorted(req_params.items()) if k != 'api_key')
     param_hash = hashlib.md5(param_str.encode('utf-8')).hexdigest()
     clean_endpoint = endpoint.strip('/').replace('/', '_')
-    cache_key = f"tmdb_{clean_endpoint}_{param_hash}"
+    region_tag = str(req_params.get('region', 'all')).lower()
+    cache_key = f"tmdb_{clean_endpoint}_{region_tag}_{param_hash}"
 
     cached_res = cache.get(cache_key)
     if cached_res:
         return cached_res
 
-    try:
-        url = f"{TMDB_BASE_URL}/{endpoint.lstrip('/')}"
-        headers = {'accept': 'application/json'}
-        if TMDB_ACCESS_TOKEN:
-            headers['Authorization'] = f"Bearer {TMDB_ACCESS_TOKEN}"
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+        'Accept': 'application/json',
+    }
+    if TMDB_ACCESS_TOKEN:
+        headers['Authorization'] = f"Bearer {TMDB_ACCESS_TOKEN}"
 
-        session = get_tmdb_session()
-        response = session.get(url, params=params, headers=headers, timeout=12)
-        if response.status_code == 200:
-            data = response.json()
-            cache.set(cache_key, data, timeout=3600)  # Cache for 1 hour
-            return data
-    except Exception as e:
-        logger.error(f"TMDB API request failed for {endpoint}: {e}")
+    session = get_tmdb_session()
+    last_err = None
 
+    for base_url in TMDB_BASE_URLS:
+        try:
+            url = f"{base_url}/{endpoint.lstrip('/')}"
+            response = session.get(url, params=req_params, headers=headers, timeout=timeout)
+            if response.status_code == 200:
+                data = response.json()
+                cache.set(cache_key, data, timeout=7200)  # Cache for 2 hours
+                return data
+            elif response.status_code == 404:
+                logger.warning(f"TMDB resource not found at {url}: {response.status_code}")
+                return None
+            else:
+                logger.warning(f"TMDB returned status {response.status_code} from {url}")
+        except Exception as e:
+            last_err = e
+            logger.warning(f"TMDB request failed using {base_url}/{endpoint}: {e}")
+
+    logger.error(f"All TMDB endpoints failed for {endpoint} (params={param_str}): {last_err}")
     return None
 
 
