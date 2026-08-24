@@ -97,11 +97,21 @@ class HomeView(TemplateView):
         # 1. Resolve Active City (Single reliable source of truth)
         current_city = context.get('current_city')
         if not current_city:
+            city_param = self.request.GET.get('city')
+            if city_param:
+                if str(city_param).isdigit():
+                    current_city = City.objects.filter(id=int(city_param)).first()
+                else:
+                    current_city = City.objects.filter(slug__iexact=city_param).first() or City.objects.filter(name__iexact=city_param).first()
+        if not current_city:
             city_id = self.request.session.get('selected_city_id')
             if city_id:
                 current_city = City.objects.filter(id=city_id).first()
         if not current_city:
-            current_city = City.objects.filter(theaters__isnull=False).first() or City.objects.first()
+            current_city = City.objects.filter(name__iexact='Hyderabad').first() or City.objects.filter(theaters__isnull=False).first() or City.objects.first()
+
+        context['current_city'] = current_city
+        context['current_city_id'] = current_city.id if current_city else None
 
         # 2. City-Aware Active Shows Subquery
         if current_city:
@@ -131,7 +141,7 @@ class HomeView(TemplateView):
         lang_whens = [When(language__code=lcode, then=Value(100 - (i * 15))) for i, lcode in enumerate(priority_langs)]
         lang_priority_case = Case(*lang_whens, default=Value(10), output_field=IntegerField())
 
-        # 4. Now Playing in Theaters: Specifically CURRENT theatrical releases running in the user's selected city!
+        # 4. Now Playing in Theaters: Specifically CURRENT theatrical releases
         selected_lang_param = self.request.GET.get('language', '').strip()
         selected_lang_obj = None
         if selected_lang_param:
@@ -140,52 +150,20 @@ class HomeView(TemplateView):
             else:
                 selected_lang_obj = Language.objects.filter(Q(code=selected_lang_param) | Q(name__iexact=selected_lang_param)).first()
 
-        if current_city:
-            now_playing_city_qs = base_movies.filter(
-                category='now_playing',
-                release_date__gte=theatrical_cutoff,
-                has_active_shows=True
-            )
-            if selected_lang_obj:
-                now_playing_city_qs = now_playing_city_qs.filter(
-                    Q(language=selected_lang_obj) | Q(shows__language=selected_lang_obj)
-                ).distinct()
+        now_playing_city_qs = base_movies.filter(
+            category='now_playing',
+            release_date__gte=theatrical_cutoff
+        )
+        if selected_lang_obj:
+            now_playing_city_qs = now_playing_city_qs.filter(
+                Q(language=selected_lang_obj) | Q(shows__language=selected_lang_obj)
+            ).distinct()
 
-            now_playing_city_qs = now_playing_city_qs.annotate(
-                lang_priority=lang_priority_case
-            ).order_by('-lang_priority', '-release_date', '-popularity')[:12]
+        now_playing_city_qs = now_playing_city_qs.annotate(
+            lang_priority=lang_priority_case
+        ).order_by('-has_active_shows', '-lang_priority', '-release_date', '-popularity')[:12]
 
-            now_playing_list = list(now_playing_city_qs)
-            # If city has no active theatrical shows (and no language filter active), fallback to current active shows in any city
-            if not now_playing_list and not selected_lang_param:
-                any_shows_subquery = Show.objects.filter(
-                    movie=OuterRef('pk'),
-                    start_time__gte=now,
-                    status='OPEN',
-                    available_seats__gt=0
-                )
-                fallback_qs = Movie.objects.filter(
-                    is_active=True,
-                    category='now_playing',
-                    release_date__gte=theatrical_cutoff
-                )\
-                    .annotate(has_active_shows=Exists(any_shows_subquery))\
-                    .filter(has_active_shows=True)\
-                    .select_related('language').prefetch_related('genres')\
-                    .order_by('-release_date', '-popularity')[:12]
-                now_playing_list = list(fallback_qs)
-            now_playing_qs = now_playing_list
-        else:
-            now_playing_qs = base_movies.filter(
-                category='now_playing',
-                release_date__gte=theatrical_cutoff,
-                has_active_shows=True
-            )
-            if selected_lang_obj:
-                now_playing_qs = now_playing_qs.filter(
-                    Q(language=selected_lang_obj) | Q(shows__language=selected_lang_obj)
-                ).distinct()
-            now_playing_qs = list(now_playing_qs.order_by('-release_date', '-popularity')[:12])
+        now_playing_qs = list(now_playing_city_qs)
 
         # Pipeline diagnostic logging (Requirement #16)
         logger.info(
